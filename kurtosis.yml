@@ -1,0 +1,30 @@
+name: github.com/LZeroAnalytics/thorchain-package
+description: |
+  Thorchain
+  =========
+  This Kurtosis package instantiates private Thorchain testnets. It automates genesis file generation, network launching with proper seed node topology, and deployment of auxiliary services like faucets and block explorers.
+
+  Prerequisites
+  -------------
+  - Basic understanding of Thorchain and Cosmos SDK blockchain architecture
+  - Knowledge of validator and node configuration parameters
+
+  Configuration
+  -------------
+  To configure this package, you'll need to provide the following information:
+  - `chains`: Configuration for each Thorchain network
+    - `name`: Chain name (e.g., "thorchain")
+    - `chain_id`: Unique identifier for the chain
+    - `denom`: Token denomination configuration (name, display, symbol, units)
+    - `participants`: Validator and node configuration
+  - `services`: Additional services to deploy
+    - `faucet`: Token distribution service configuration
+    - `explorer`: Thorchain Explorer v2 frontend configuration
+  - `network_conditions`: Latency and jitter settings for realistic testing
+
+  Seed Node Topology
+  ------------------
+  The package implements the exact seed node topology as cosmos-package:
+  - First node starts without any seeds (becomes the seed node)
+  - All subsequent nodes connect to the first node using --p2p.seeds flag
+  - This ensures proper network formation and connectivity
