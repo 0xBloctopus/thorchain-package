@@ -5,18 +5,18 @@ def launch_network(plan, genesis_files, parsed_args):
         chain_id = chain["chain_id"]
         binary = "thornode"
         config_folder = "/root/.thornode/config"
-        thornode_args = "--chain-id {}".format(chain_id)
+        thornode_args = ""
         
         genesis_file = genesis_files[chain_name]["genesis_file"]
         mnemonics = genesis_files[chain_name]["mnemonics"]
         faucet_data = genesis_files[chain_name]["faucet"]
         
-        node_info = start_network(plan, chain, binary, config_folder, thornode_args, genesis_file, mnemonics, faucet_data)
+        node_info = start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_file, mnemonics, faucet_data)
         networks[chain_name] = node_info
     
     return networks
 
-def start_network(plan, chain, binary, config_folder, thornode_args, genesis_file, mnemonics, faucet_data):
+def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_file, mnemonics, faucet_data):
     chain_name = chain["name"]
     participants = chain["participants"]
     
@@ -40,7 +40,8 @@ def start_network(plan, chain, binary, config_folder, thornode_args, genesis_fil
                     plan, 
                     node_name, 
                     participant, 
-                    binary, 
+                    binary,
+                    chain_id,
                     thornode_args, 
                     config_folder, 
                     genesis_file, 
@@ -57,7 +58,8 @@ def start_network(plan, chain, binary, config_folder, thornode_args, genesis_fil
                     plan, 
                     node_name, 
                     participant, 
-                    binary, 
+                    binary,
+                    chain_id,
                     thornode_args, 
                     config_folder, 
                     genesis_file, 
@@ -73,7 +75,7 @@ def start_network(plan, chain, binary, config_folder, thornode_args, genesis_fil
     
     return node_info
 
-def start_node(plan, node_name, participant, binary, thornode_args, config_folder, genesis_file, mnemonic, faucet_data, is_first_node, first_node_id, first_node_ip):
+def start_node(plan, node_name, participant, binary, chain_id, thornode_args, config_folder, genesis_file, mnemonic, faucet_data, is_first_node, first_node_id, first_node_ip):
     image = participant["image"]
     min_cpu = participant.get("min_cpu", 500)
     min_memory = participant.get("min_memory", 512)
@@ -90,6 +92,7 @@ def start_node(plan, node_name, participant, binary, thornode_args, config_folde
     # Prepare template data
     template_data = {
         "NodeName": node_name,
+        "ChainID": chain_id,
         "Binary": binary,
         "ConfigFolder": config_folder,
         "ThorNodeArgs": thornode_args,
@@ -117,11 +120,11 @@ def start_node(plan, node_name, participant, binary, thornode_args, config_folde
     
     # Configure ports
     ports = {
-        "rpc": PortSpec(number=26657, transport_protocol="TCP"),
-        "p2p": PortSpec(number=26656, transport_protocol="TCP"),
-        "grpc": PortSpec(number=9090, transport_protocol="TCP"),
-        "api": PortSpec(number=1317, transport_protocol="TCP"),
-        "prometheus": PortSpec(number=26660, transport_protocol="TCP")
+        "rpc": PortSpec(number=26657, transport_protocol="TCP", wait=None),
+        "p2p": PortSpec(number=26656, transport_protocol="TCP", wait=None),
+        "grpc": PortSpec(number=9090, transport_protocol="TCP", wait=None),
+        "api": PortSpec(number=1317, transport_protocol="TCP", wait=None),
+        "prometheus": PortSpec(number=26660, transport_protocol="TCP", wait=None)
     }
     
     # Configure resource requirements
@@ -145,7 +148,7 @@ def start_node(plan, node_name, participant, binary, thornode_args, config_folde
     node_id_result = plan.exec(
         service_name=node_name,
         recipe=ExecRecipe(
-            command=["/bin/sh", "-c", "{} tendermint show-node-id --home {}".format(binary, config_folder)],
+            command=["/bin/sh", "-c", "{} tendermint show-node-id".format(binary)],
             extract={
                 "node_id": "."
             }

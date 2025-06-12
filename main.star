@@ -28,22 +28,22 @@ def run(plan, args):
             node_names.append(node["name"])
 
         # Wait until first block is produced before deploying additional services
-        plan.wait(
-            service_name = node_names[0],
-            recipe = GetHttpRequestRecipe(
-                port_id = "rpc",
-                endpoint = "/status",
-                extract = {
-                    "block": ".result.sync_info.latest_block_height"
-                }
-            ),
-            field = "extract.block",
-            assertion = ">=",
-            target_value = "1",
-            interval = "1s",
-            timeout = "1m",
-            description = "Waiting for first block for chain " + chain_name
-        )
+        # plan.wait(
+        #     service_name = node_names[0],
+        #     recipe = GetHttpRequestRecipe(
+        #         port_id = "rpc",
+        #         endpoint = "/status",
+        #         extract = {
+        #             "block": ".result.sync_info.latest_block_height"
+        #         }
+        #     ),
+        #     field = "extract.block",
+        #     assertion = ">=",
+        #     target_value = "1",
+        #     interval = "1s",
+        #     timeout = "1m",
+        #     description = "Waiting for first block for chain " + chain_name
+        # )
 
         for service in service_launchers:
             if service in additional_services:

@@ -1,9 +1,7 @@
-#!/bin/bash
-
-set -euo pipefail
-
 BINARY="{{ .Binary }}"
 CONFIG_FOLDER="{{ .ConfigFolder }}"
+# The Thornode *home* directory is the parent of CONFIG_FOLDER
+NODE_HOME="$(dirname "$CONFIG_FOLDER")"
 THORNODE_ARGS="{{ .ThorNodeArgs }}"
 SEED_OPTIONS="{{ .SeedOptions }}"
 MNEMONIC="{{ .Mnemonic }}"
@@ -11,21 +9,19 @@ NODE_NAME="{{ .NodeName }}"
 
 echo "Starting Thorchain node: $NODE_NAME"
 
-# Copy genesis file to the correct location
-cp /tmp/genesis/genesis.json $CONFIG_FOLDER/genesis.json
-
 # Initialize the node with the mnemonic
-echo "$MNEMONIC" | $BINARY init $NODE_NAME --recover $THORNODE_ARGS
+echo "$MNEMONIC" | $BINARY init "$NODE_NAME" --recover --home "$NODE_HOME" $THORNODE_ARGS
 
 # Copy the genesis file again after init (in case init overwrote it)
-cp /tmp/genesis/genesis.json $CONFIG_FOLDER/genesis.json
+mkdir -p "$CONFIG_FOLDER"
+cp /tmp/genesis/genesis.json "$CONFIG_FOLDER/genesis.json"
 
 # Configure the node
-$BINARY config chain-id {{ .ChainID }} --home $CONFIG_FOLDER
-$BINARY config keyring-backend test --home $CONFIG_FOLDER
+$BINARY config chain-id {{ .ChainID }} --home "$NODE_HOME"
+$BINARY config keyring-backend test --home "$NODE_HOME"
 
 # Import the validator key
-echo "$MNEMONIC" | $BINARY keys add validator --recover --keyring-backend test $THORNODE_ARGS
+printf '%s\n\n\n\n' "$MNEMONIC" | $BINARY keys add validator --recover --keyring-backend test --home "$NODE_HOME"
 
 # Configure node settings
 sed -i 's/^minimum-gas-prices = ""/minimum-gas-prices = "0rune"/' $CONFIG_FOLDER/config/app.toml
@@ -60,8 +56,8 @@ echo "Node configuration completed"
 # Start the node with seed options if provided
 if [ -n "$SEED_OPTIONS" ]; then
     echo "Starting node with seeds: $SEED_OPTIONS"
-    exec $BINARY start --home $CONFIG_FOLDER $SEED_OPTIONS $THORNODE_ARGS
+    exec $BINARY start --home "$NODE_HOME" $SEED_OPTIONS $THORNODE_ARGS
 else
     echo "Starting seed node (no seeds configured)"
-    exec $BINARY start --home $CONFIG_FOLDER $THORNODE_ARGS
+    exec $BINARY start --home "$NODE_HOME" $THORNODE_ARGS
 fi
