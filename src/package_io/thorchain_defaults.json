@@ -1,7 +1,7 @@
 {
   "name": "thorchain",
   "type": "thorchain",
-  "chain_id": "thorchain-localnet-1",
+  "chain_id": "thorchain-1",
   "binary": "thornode",
   "genesis_delay": 20,
   "initial_height": 1,
@@ -71,7 +71,7 @@
   },
   "participants": [
     {
-      "image": "registry.gitlab.com/thorchain/thornode:latest",
+      "image": "registry.gitlab.com/thorchain/thornode:mainnet",
       "account_balance": 100000000000,
       "staking_amount": 1000000000,
       "count": 1,

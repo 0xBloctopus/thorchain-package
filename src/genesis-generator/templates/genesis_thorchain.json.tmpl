@@ -48,6 +48,9 @@
         }
       ]
     },
+    "denom": {
+      "admins": []
+    },
     "capability": {
       "index": "1",
       "owners": []
@@ -150,6 +153,7 @@
         "blocks_per_year": "{{ .MintBlocksPerYear }}"
       }
     },
+    "thorchain": {},
     "params": null,
     "slashing": {
       "params": {
@@ -186,6 +190,18 @@
         "send_enabled": true,
         "receive_enabled": true
       }
+    },
+    "wasm": {
+       "params": {
+        "code_upload_access": {
+         "permission": "Everybody",
+         "addresses": []
+        },
+        "instantiate_default_permission": "Everybody"
+       },
+       "codes": [],
+       "contracts": [],
+       "sequences": []
     },
     "upgrade": {},
     "vesting": {}

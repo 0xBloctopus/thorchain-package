@@ -1,8 +1,4 @@
-#!/bin/bash
-
-set -euo pipefail
-
-CHAIN_ID="${CHAIN_ID:-thorchain-localnet-1}"
+CHAIN_ID="${CHAIN_ID:-thorchain-1}"
 NODE_URL="${NODE_URL:-http://localhost:26657}"
 TRANSFER_AMOUNT="${TRANSFER_AMOUNT:-100000000}"
 PORT="${PORT:-8090}"
@@ -17,7 +13,7 @@ echo "Monitoring Port: $MONITORING_PORT"
 
 echo "Importing faucet key..."
 thornode keys delete faucet --keyring-backend test --yes 2>/dev/null || true
-cat /tmp/mnemonic/mnemonic.txt | thornode keys add faucet --recover --keyring-backend test --chain-id "$CHAIN_ID"
+cat /tmp/mnemonic/mnemonic.txt | thornode keys add faucet --recover --keyring-backend test
 
 echo "Faucet key imported successfully"
 
