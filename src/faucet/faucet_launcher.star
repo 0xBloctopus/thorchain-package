@@ -19,7 +19,7 @@ def launch_faucet(plan, chain_name, chain_id, mnemonic, transfer_amount):
     )
 
     # Use the Thorchain image directly
-    faucet_image = "registry.gitlab.com/thorchain/thornode:latest"
+    faucet_image = "registry.gitlab.com/thorchain/thornode:mainnet"
 
     # Create faucet script as a template
     faucet_script = plan.render_templates(

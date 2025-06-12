@@ -75,7 +75,7 @@ exec npm run preview
         config=ServiceConfig(
             image=explorer_image,
             ports={
-                "http": PortSpec(number=3000, transport_protocol="TCP", wait="2m")
+                "http": PortSpec(number=3000, transport_protocol="TCP", wait=None)
             },
             files={
                 "/tmp/scripts": startup_script_artifact

@@ -52,17 +52,17 @@ def generate_genesis_file(plan, chain, binary, config_path, thornode_args):
             if participant.get("staking", True):
                 staking_amounts.append("{}{}".format(participant["staking_amount"], denom["name"]))
 
-    mnemonics, addresses, pub_keys = generate_keys(plan, total_count, chain_id, binary, config_path, thornode_args)
+    mnemonics, addresses, pub_keys = generate_keys(plan, total_count, chain_id, binary, config_path)
 
     all_addresses = addresses[:]
     all_pub_keys = pub_keys[:]
 
     init_genesis(plan, binary, config_path, thornode_args)
 
-    add_accounts(plan, addresses, account_balances, binary, thornode_args)
+    add_accounts(plan, addresses, account_balances, binary)
 
     # Add faucet if enabled
-    faucet_mnemonic, faucet_address = add_faucet(plan, faucet["faucet_amount"], chain["name"], denom["name"], binary, thornode_args)
+    faucet_mnemonic, faucet_address = add_faucet(plan, faucet["faucet_amount"], chain["name"], denom["name"], binary)
     faucet_data = {
         "mnemonic": faucet_mnemonic,
         "address": faucet_address
@@ -72,8 +72,6 @@ def generate_genesis_file(plan, chain, binary, config_path, thornode_args):
         for _ in range(participant["count"]):
             if participant.get("staking", True):
                 staking_addresses.append(all_addresses.pop(0))
-
-    add_validators(plan, chain_id, staking_addresses, all_pub_keys[:len(staking_addresses)], staking_amounts, min_self_delegation, binary, config_path, thornode_args)
 
     genesis_file = plan.store_service_files(
         service_name="genesis-service",
@@ -146,19 +144,19 @@ def start_genesis_service(plan, chain_id, genesis_time, denom, consensus_params,
     plan.add_service(
         name="genesis-service",
         config=ServiceConfig(
-            image="registry.gitlab.com/thorchain/thornode:latest",
+            image="registry.gitlab.com/thorchain/thornode:mainnet",
             files=files
         )
     )
 
-def generate_keys(plan, total_count, chain_id, binary, config_path, thornode_args):
+def generate_keys(plan, total_count, chain_id, binary, config_path):
     addresses = []
     mnemonics = []
     pub_keys = []
     for i in range(total_count):
         keyring_flags = "--keyring-backend test"
 
-        keys_command = "{} keys add validator{} {} --output json {}".format(binary, i, keyring_flags, thornode_args)
+        keys_command = "{} keys add validator{} {} --output json".format(binary, i, keyring_flags)
         key_result = plan.exec(
             service_name="genesis-service",
             recipe=ExecRecipe(
@@ -174,8 +172,9 @@ def generate_keys(plan, total_count, chain_id, binary, config_path, thornode_arg
         mnemonic = key_result["extract.mnemonic"]
         addresses.append(key_address)
         mnemonics.append(mnemonic)
+        thornode_args = "--chain-id {}".format(chain_id)
 
-        init_command = "echo -e '{}' | {} init validator{} --recover {}".format(mnemonic, binary, i, thornode_args)
+        init_command = "printf '%s\n\n\n\n' '{}' | {} init validator{} --recover {}".format(mnemonic, binary, i, thornode_args)
         plan.exec(
             service_name = "genesis-service",
             recipe = ExecRecipe(
@@ -224,9 +223,9 @@ def init_genesis(plan, binary, config_path, thornode_args):
         )
     )
 
-def add_accounts(plan, addresses, account_balances, binary, thornode_args):
+def add_accounts(plan, addresses, account_balances, binary):
     for i, address in enumerate(addresses):
-        add_account_command = "{} genesis add-genesis-account {} {} {}".format(binary, address, account_balances[i], thornode_args)
+        add_account_command = "{} genesis add-genesis-account {} {}".format(binary, address, account_balances[i])
         plan.exec(
             service_name="genesis-service",
             recipe=ExecRecipe(
@@ -234,11 +233,11 @@ def add_accounts(plan, addresses, account_balances, binary, thornode_args):
             )
         )
 
-def add_faucet(plan, faucet_amount, chain_name, denom_name, binary, thornode_args):
+def add_faucet(plan, faucet_amount, chain_name, denom_name, binary):
 
     keyring_flags = "--keyring-backend test"
 
-    keys_command = "{} keys add faucet-{} {} --output json {}".format(binary, chain_name, keyring_flags, thornode_args)
+    keys_command = "{} keys add faucet-{} {} --output json".format(binary, chain_name, keyring_flags)
     key_result = plan.exec(
         service_name="genesis-service",
         recipe=ExecRecipe(
@@ -253,7 +252,7 @@ def add_faucet(plan, faucet_amount, chain_name, denom_name, binary, thornode_arg
     faucet_address = key_result["extract.faucet_address"]
     faucet_mnemonic = key_result["extract.mnemonic"]
 
-    add_account_command = "{} genesis add-genesis-account {} {}{} {}".format(binary, faucet_address, faucet_amount, denom_name, thornode_args)
+    add_account_command = "{} genesis add-genesis-account {} {}{}".format(binary, faucet_address, faucet_amount, denom_name)
     plan.exec(
         service_name="genesis-service",
         recipe=ExecRecipe(
@@ -262,37 +261,6 @@ def add_faucet(plan, faucet_amount, chain_name, denom_name, binary, thornode_arg
     )
 
     return faucet_mnemonic, faucet_address
-
-def add_validators(plan, chain_id, addresses, pub_keys, staking_amounts, min_self_delegation, binary, config_path, thornode_args):
-
-    # Create gentx directory
-    plan.exec(
-        service_name = "genesis-service",
-        recipe = ExecRecipe(
-            command = ["/bin/sh", "-c", "mkdir -p {}/gentx/".format(config_path)]
-        )
-    )
-
-    for i, address in enumerate(addresses):
-        keyring_flags = "--keyring-backend test"
-        filename = "gentx-validator{}.json".format(i)
-        pub_key = pub_keys[i]
-
-        gentx_command = "{} genesis gentx validator{} {} {} --min-self-delegation {} --output-document {}/gentx/{} --chain-id {} --pubkey '{} '".format(binary, i, staking_amounts[i], keyring_flags, min_self_delegation, config_path, filename, chain_id, pub_key)
-        plan.exec(
-            service_name="genesis-service",
-            recipe=ExecRecipe(
-                command=["/bin/sh", "-c", gentx_command]
-            )
-        )
-
-    collect_gentxs_command = "{} genesis collect-gentxs {}".format(binary, thornode_args)
-    plan.exec(
-        service_name="genesis-service",
-        recipe=ExecRecipe(
-            command=["/bin/sh", "-c", collect_gentxs_command]
-        )
-    )
 
 def get_genesis_time(plan, genesis_delay):
     result = plan.run_python(
