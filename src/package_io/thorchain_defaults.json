@@ -1,8 +1,11 @@
 {
   "name": "thorchain",
   "type": "thorchain",
-  "chain_id": "thorchain-1",
+  "chain_id": "thorchain",
   "binary": "thornode",
+  "app_version": "3.7.0",
+  "reserve_amount": "22000000000000000",
+  "chain_contracts": [],
   "genesis_delay": 20,
   "initial_height": 1,
   "denom": {
@@ -19,7 +22,7 @@
     "faucet_amount": 100000000000000,
     "transfer_amount": 100000000
   },
-  "consensus_params": {
+  "consensus": {
     "block_max_bytes": 22020096,
     "block_max_gas": 50000000,
     "evidence_max_age_duration": 172800000000000,
@@ -73,7 +76,7 @@
     {
       "image": "registry.gitlab.com/thorchain/thornode:mainnet",
       "account_balance": 100000000000,
-      "staking_amount": 1000000000,
+      "bond_amount": "30000000000000",
       "count": 1,
       "staking": true,
       "latency": 0,
