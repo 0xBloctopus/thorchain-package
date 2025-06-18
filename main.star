@@ -9,7 +9,7 @@ def run(plan, args):
 
     genesis_files = genesis_generator.generate_genesis_files(plan, parsed_args)
 
-    #networks = network_launcher.launch_network(plan, genesis_files, parsed_args)
+    networks = network_launcher.launch_network(plan, genesis_files, parsed_args)
 
     # service_launchers = {
     #     "faucet": faucet.launch_faucet,

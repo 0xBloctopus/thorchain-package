@@ -16,7 +16,6 @@ def _one_chain(plan, chain_cfg):
     binary          = "thornode"
     config_dir      = "/root/.thornode/config"
     chain_id        = chain_cfg["chain_id"]
-    thornode_flags  = "--chain-id {}".format(chain_id)
 
     total_count = 0
     account_balances = []
@@ -48,7 +47,7 @@ def _one_chain(plan, chain_cfg):
     ) = _generate_validator_keys(
         plan       = plan,
         binary     = binary,
-        config_dir = config_dir,
+        chain_id = chain_id,
         count      = total_count,
     )
 
@@ -56,7 +55,6 @@ def _one_chain(plan, chain_cfg):
     # 2) Write the *Cosmos* accounts & balances
     # -------------------------------------------------------------------------
 
-    _init_empty_chain(plan, binary, thornode_flags)
     _add_balances(plan, binary, addresses, account_balances)
 
     # -------------------------------------------------------------------------
@@ -177,7 +175,7 @@ def _start_genesis_service(plan, chain_cfg, binary, config_dir):
     plan.exec("genesis-service", ExecRecipe(command=["mkdir", "-p", config_dir]))
 
 
-def _generate_validator_keys(plan, binary, config_dir, count):
+def _generate_validator_keys(plan, binary, chain_id, count):
     """
     Returns 5 parallel arrays (mnemonics, bech32 addresses, secp pk, ed pk, cons pk)
     """
@@ -187,6 +185,7 @@ def _generate_validator_keys(plan, binary, config_dir, count):
         kr_flags = "--keyring-backend test"
         # 1. CLI key
         cmd = "{} keys add validator{} {} --output json".format(binary, i, kr_flags)
+        plan.print(cmd)
         res = plan.exec("genesis-service", ExecRecipe(
             command=["/bin/sh", "-c", cmd],
             extract={"addr": "fromjson | .address", "mnemonic": "fromjson | .mnemonic"}
@@ -194,8 +193,12 @@ def _generate_validator_keys(plan, binary, config_dir, count):
         addr.append(res["extract.addr"].replace("\n", ""))
         m.append(res["extract.mnemonic"].replace("\n", ""))
 
+        thornode_flags  = "--chain-id {}".format(chain_id)
+        _init_empty_chain(plan, binary, res["extract.mnemonic"].replace("\n", ""), thornode_flags)
+
         # 2. secp256k1 pk
         pk_cmd = "{0} keys show validator{1} --pubkey {2} | {0} pubkey | tr -d '\\n'".format(binary, i, kr_flags)
+        plan.print(pk_cmd)
         cons_res = plan.exec("genesis-service", ExecRecipe(
             command=["/bin/sh", "-c", pk_cmd],
         ))
@@ -203,6 +206,7 @@ def _generate_validator_keys(plan, binary, config_dir, count):
 
         # 3. validator consensus pk
         cons_cmd = "{0} tendermint show-validator | {0} pubkey --bech cons | tr -d '\\n'".format(binary)
+        plan.print(cons_cmd)
         cons_res = plan.exec("genesis-service", ExecRecipe(
             command=["/bin/sh", "-c", cons_cmd],
         ))
@@ -210,25 +214,30 @@ def _generate_validator_keys(plan, binary, config_dir, count):
 
         # 4. ed25519 pk
         ed_cmd = "{0} tendermint show-validator | {0} pubkey | tr -d '\\n'".format(binary)
+        plan.print(ed_cmd)
         ed_res = plan.exec("genesis-service", ExecRecipe(
             command=["/bin/sh", "-c", ed_cmd]
         ))
         ed.append(ed_res["output"])
 
         # Remove auto‑created genesis so we can drop in our rendered one later
-        plan.exec("genesis-service", ExecRecipe(
-            command=["rm", "-f", "{}/genesis.json".format(config_dir)]
-        ))
+        # plan.exec("genesis-service", ExecRecipe(
+        #     command=["rm", "-f", "{}/genesis.json".format(config_dir)]
+        # ))
 
     return m, addr, secp, ed, cons
 
 
-def _init_empty_chain(plan, binary, thornode_flags):
-    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh", "-c", "{} init local {}".format(binary, thornode_flags)]))
+def _init_empty_chain(plan, binary, mnemonic, thornode_flags):
+    cmd = "/bin/sh", "-c", "echo {} | {} init local --recover {}".format(mnemonic, binary, thornode_flags)
+    plan.print(cmd)
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh", "-c", "echo {} | {} init local --recover {}".format(mnemonic, binary, thornode_flags)]))
 
 
 def _add_balances(plan, binary, addresses, amounts):
     for a, amt in zip(addresses, amounts):
+        cmd = "/bin/sh", "-c", "{} genesis add-genesis-account {} {}rune".format(binary, a, amt)
+        plan.print(cmd)
         plan.exec("genesis-service", ExecRecipe(
             command=["/bin/sh", "-c", "{} genesis add-genesis-account {} {}rune".format(binary, a, amt)]
         ))

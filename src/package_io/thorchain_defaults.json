@@ -6,7 +6,7 @@
   "app_version": "3.7.0",
   "reserve_amount": "22000000000000000",
   "chain_contracts": [],
-  "genesis_delay": 20,
+  "genesis_delay": 0,
   "initial_height": 1,
   "denom": {
     "name": "rune",
@@ -79,8 +79,6 @@
       "bond_amount": "30000000000000",
       "count": 1,
       "staking": true,
-      "latency": 0,
-      "jitter": 0,
       "min_cpu": 500,
       "min_memory": 512
     }
