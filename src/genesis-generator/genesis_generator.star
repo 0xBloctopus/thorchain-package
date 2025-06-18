@@ -25,7 +25,7 @@ def _one_chain(plan, chain_cfg):
     for participant in chain_cfg["participants"]:
         total_count += participant["count"]
         for _ in range(participant["count"]):
-            account_balances.append("{}{}".format(participant["account_balance"], chain_cfg["denom"]["name"]))
+            account_balances.append("{}".format(participant["account_balance"]))
             if participant.get("staking", True):
                 bond_amounts.append("{}".format(participant["bond_amount"]))
 
@@ -194,21 +194,26 @@ def _generate_validator_keys(plan, binary, config_dir, count):
         addr.append(res["extract.addr"].replace("\n", ""))
         m.append(res["extract.mnemonic"].replace("\n", ""))
 
-        # 2. ed25519 pk
-        ed_cmd = "printf '%s\\n%s\\n' '{mn}' '{mn}' | {bin} ed25519 | tr -d '\\n'".format(mn=m[-1], bin=binary)
+        # 2. secp256k1 pk
+        pk_cmd = "{0} keys show validator{1} --pubkey {2} | {0} pubkey | tr -d '\\n'".format(binary, i, kr_flags)
+        cons_res = plan.exec("genesis-service", ExecRecipe(
+            command=["/bin/sh", "-c", pk_cmd],
+        ))
+        secp.append(cons_res["output"])
+
+        # 3. validator consensus pk
+        cons_cmd = "{0} tendermint show-validator | {0} pubkey --bech cons | tr -d '\\n'".format(binary)
+        cons_res = plan.exec("genesis-service", ExecRecipe(
+            command=["/bin/sh", "-c", cons_cmd],
+        ))
+        cons.append(cons_res["output"])
+
+        # 4. ed25519 pk
+        ed_cmd = "{0} tendermint show-validator | {0} pubkey | tr -d '\\n'".format(binary)
         ed_res = plan.exec("genesis-service", ExecRecipe(
             command=["/bin/sh", "-c", ed_cmd]
         ))
         ed.append(ed_res["output"])
-
-        # 4. validator consensus pk
-        cons_cmd = "{} keys show validator{} --bech cons --pubkey {}".format(binary, i, kr_flags)
-        cons_res = plan.exec("genesis-service", ExecRecipe(
-            command=["/bin/sh", "-c", cons_cmd],
-            extract={"pk": "fromjson | .key"},
-        ))
-        cons.append(cons_res["extract.pk"].replace("\n", ""))
-        secp.append(cons_res["extract.pk"].replace("\n", ""))
 
         # Remove auto‑created genesis so we can drop in our rendered one later
         plan.exec("genesis-service", ExecRecipe(
@@ -225,7 +230,7 @@ def _init_empty_chain(plan, binary, thornode_flags):
 def _add_balances(plan, binary, addresses, amounts):
     for a, amt in zip(addresses, amounts):
         plan.exec("genesis-service", ExecRecipe(
-            command=["/bin/sh", "-c", "{} genesis add-genesis-account {} {}".format(binary, a, amt)]
+            command=["/bin/sh", "-c", "{} genesis add-genesis-account {} {}rune".format(binary, a, amt)]
         ))
 
 
