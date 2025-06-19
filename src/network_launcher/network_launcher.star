@@ -9,14 +9,13 @@ def launch_network(plan, genesis_files, parsed_args):
         
         genesis_file = genesis_files[chain_name]["genesis_file"]
         mnemonics = genesis_files[chain_name]["mnemonics"]
-        faucet_data = genesis_files[chain_name]["faucet"]
         
-        node_info = start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_file, mnemonics, faucet_data)
+        node_info = start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_file, mnemonics)
         networks[chain_name] = node_info
     
     return networks
 
-def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_file, mnemonics, faucet_data):
+def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_file, mnemonics):
     chain_name = chain["name"]
     participants = chain["participants"]
     
@@ -45,8 +44,7 @@ def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, g
                     thornode_args, 
                     config_folder, 
                     genesis_file, 
-                    mnemonic, 
-                    faucet_data, 
+                    mnemonic,
                     True, 
                     first_node_id, 
                     first_node_ip
@@ -63,8 +61,7 @@ def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, g
                     thornode_args, 
                     config_folder, 
                     genesis_file, 
-                    mnemonic, 
-                    faucet_data, 
+                    mnemonic,
                     False, 
                     first_node_id, 
                     first_node_ip
@@ -75,12 +72,10 @@ def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, g
     
     return node_info
 
-def start_node(plan, node_name, participant, binary, chain_id, thornode_args, config_folder, genesis_file, mnemonic, faucet_data, is_first_node, first_node_id, first_node_ip):
+def start_node(plan, node_name, participant, binary, chain_id, thornode_args, config_folder, genesis_file, mnemonic, is_first_node, first_node_id, first_node_ip):
     image = participant["image"]
     min_cpu = participant.get("min_cpu", 500)
     min_memory = participant.get("min_memory", 512)
-    latency = participant.get("latency", 0)
-    jitter = participant.get("jitter", 0)
     
     # Configure seed options - critical seed topology implementation
     seed_options = ""
@@ -98,7 +93,6 @@ def start_node(plan, node_name, participant, binary, chain_id, thornode_args, co
         "ThorNodeArgs": thornode_args,
         "SeedOptions": seed_options,
         "Mnemonic": mnemonic,
-        "FaucetMnemonic": faucet_data["mnemonic"] if faucet_data else ""
     }
     
     # Render start script template

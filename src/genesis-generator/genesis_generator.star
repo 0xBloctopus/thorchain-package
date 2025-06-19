@@ -1,268 +1,267 @@
+BOND_MODULE_ADDR = "tthor17gw75axcnr8747pkanye45pnrwk7p9c3uhzgff"
+
 def generate_genesis_files(plan, parsed_args):
-    genesis_files = {}
-    for chain in parsed_args["chains"]:
-        binary = "thornode"
-        config_folder = "/root/.thornode/config"
-        thornode_args = "--chain-id {}".format(chain["chain_id"])
-        genesis_file, mnemonics, addresses, faucet_data = generate_genesis_file(plan, chain, binary, config_folder, thornode_args)
+    out = {}
 
-        genesis_files[chain["name"]] = {
-            "genesis_file": genesis_file,
-            "mnemonics": mnemonics,
-            "addresses": addresses,
-            "faucet": faucet_data
-        }
-    return genesis_files
+    for chain_cfg in parsed_args["chains"]:
+        out[chain_cfg["name"]] = _one_chain(plan, chain_cfg)
 
-def generate_genesis_file(plan, chain, binary, config_path, thornode_args):
-    chain_id = chain["chain_id"]
-    genesis_delay = chain["genesis_delay"]
-    denom = chain["denom"]
-    consensus_params = chain["consensus_params"]
-    modules = chain["modules"]
-    faucet = chain["faucet"]
-    initial_height = chain["initial_height"]
-    genesis_time = get_genesis_time(plan, genesis_delay)
-    min_self_delegation = chain["modules"]["staking"]["min_self_delegation"]
+    return out
 
-    faucet_data = None
 
-    # Start the service to generate genesis file
-    start_genesis_service(
-        plan,
-        chain_id,
-        genesis_time,
-        denom,
-        consensus_params,
-        modules,
-        chain["name"],
-        initial_height,
-        binary
-    )
+################################################################################
+# One‑chain pipeline
+################################################################################
+def _one_chain(plan, chain_cfg):
+    binary          = "thornode"
+    config_dir      = "/root/.thornode/config"
+    chain_id        = chain_cfg["chain_id"]
 
     total_count = 0
     account_balances = []
-    staking_addresses = []
-    staking_amounts = []
+    bond_amounts = []
 
-    for participant in chain["participants"]:
+    for participant in chain_cfg["participants"]:
         total_count += participant["count"]
         for _ in range(participant["count"]):
-            account_balances.append("{}{}".format(participant["account_balance"], denom["name"]))
+            account_balances.append("{}".format(participant["account_balance"]))
             if participant.get("staking", True):
-                staking_amounts.append("{}{}".format(participant["staking_amount"], denom["name"]))
+                bond_amounts.append("{}".format(participant["bond_amount"]))
 
-    mnemonics, addresses, pub_keys = generate_keys(plan, total_count, chain_id, binary, config_path)
-
-    all_addresses = addresses[:]
-    all_pub_keys = pub_keys[:]
-
-    init_genesis(plan, binary, config_path, thornode_args)
-
-    add_accounts(plan, addresses, account_balances, binary)
-
-    # Add faucet if enabled
-    faucet_mnemonic, faucet_address = add_faucet(plan, faucet["faucet_amount"], chain["name"], denom["name"], binary)
-    faucet_data = {
-        "mnemonic": faucet_mnemonic,
-        "address": faucet_address
-    }
-
-    for participant in chain["participants"]:
-        for _ in range(participant["count"]):
-            if participant.get("staking", True):
-                staking_addresses.append(all_addresses.pop(0))
-
-    genesis_file = plan.store_service_files(
-        service_name="genesis-service",
-        src="{}/genesis.json".format(config_path, chain_id),
-        name="{}-genesis-file".format(chain["name"])
+    # -------------------------------------------------------------------------
+    # 1) Generate files & keys in a disposable container
+    # -------------------------------------------------------------------------
+    _start_genesis_service(
+        plan      = plan,
+        chain_cfg = chain_cfg,
+        binary    = binary,
+        config_dir= config_dir,
     )
-    plan.remove_service(name="genesis-service")
 
-    return genesis_file, mnemonics, addresses, faucet_data
+    (
+        mnemonics,
+        addresses,
+        secp_pks,
+        ed_pks,
+        cons_pks,
+    ) = _generate_validator_keys(
+        plan       = plan,
+        binary     = binary,
+        chain_id = chain_id,
+        count      = total_count,
+    )
 
-def start_genesis_service(plan, chain_id, genesis_time, denom, consensus_params, modules, chain_name, initial_height, binary):
+    # -------------------------------------------------------------------------
+    # 2) Write the *Cosmos* accounts & balances
+    # -------------------------------------------------------------------------
+
+    _add_balances(plan, binary, addresses, account_balances)
+
+    # -------------------------------------------------------------------------
+    # 3) Build THORChain node_accounts objects
+    # -------------------------------------------------------------------------
+    node_accounts = []
+    for i in range(total_count):
+        node_accounts.append({
+            "node_address":            addresses[i],
+            "version":                 chain_cfg["app_version"],
+            "ip_address":              chain_cfg.get("validator_ips", ["127.0.0.1"])[i],
+            "status":                  "Active",
+            "bond":                    bond_amounts[i],
+            "active_block_height":     "0",
+            "bond_address":            addresses[i],
+            "signer_membership":       [],
+            "validator_cons_pub_key":  cons_pks[i],
+            "pub_key_set": {
+                "secp256k1":           secp_pks[i],
+                "ed25519":             ed_pks[i],
+            },
+        })
+
+    # -------------------------------------------------------------------------
+    # 4) Build other dynamic lists (accounts, balances, chain contracts …)
+    # -------------------------------------------------------------------------
+    accounts_json  = json.encode(_mk_accounts_array(addresses))
+    balances_json  = json.encode(_mk_balances_array(
+        addresses,
+        account_balances
+    ))
+    contracts_json = json.encode(chain_cfg["chain_contracts"])
+    nodeacc_json   = json.encode(node_accounts)
+
+    # -------------------------------------------------------------------------
+    # 5) Render the final template
+    # -------------------------------------------------------------------------
     genesis_data = {
-        "ChainID": chain_id,
-        "GenesisTime": genesis_time,
-        "DenomName": denom["name"],
-        "DenomDisplay": denom["display"],
-        "DenomSymbol": denom["symbol"],
-        "DenomDescription": denom["description"],
-        "DenomUnits": json.encode(denom["units"]),
-        "MinSelfDelegation": modules["staking"]["min_self_delegation"],
-        "MaxValidators": modules["staking"]["max_validators"],
-        "BlockMaxBytes": consensus_params["block_max_bytes"],
-        "BlockMaxGas": consensus_params["block_max_gas"],
-        "EvidenceMaxAgeDuration": consensus_params["evidence_max_age_duration"],
-        "EvidenceMaxAgeNumBlocks": consensus_params["evidence_max_age_num_blocks"],
-        "EvidenceMaxBytes": consensus_params["evidence_max_bytes"],
-        "ValidatorPubKeyTypes": json.encode(consensus_params["validator_pub_key_types"]),
-        "InitialHeight": initial_height,
-        "AuthMaxMemoCharacters": modules["auth"]["max_memo_characters"],
-        "AuthSigVerifyCostEd25519": modules["auth"]["sig_verify_cost_ed25519"],
-        "AuthSigVerifyCostSecp256k1": modules["auth"]["sig_verify_cost_secp256k1"],
-        "AuthTxSigLimit": modules["auth"]["tx_sig_limit"],
-        "AuthTxSizeCostPerByte": modules["auth"]["tx_size_cost_per_byte"],
-        "CrisisConstantFeeAmount": modules["crisis"]["constant_fee_amount"],
-        "DistributionBaseProposerReward": modules["distribution"]["base_proposer_reward"],
-        "DistributionBonusProposerReward": modules["distribution"]["bonus_proposer_reward"],
-        "DistributionCommunityTax": modules["distribution"]["community_tax"],
-        "DistributionWithdrawAddrEnabled": modules["distribution"]["withdraw_addr_enabled"],
-        "SlashingDowntimeJailDuration": modules["slashing"]["downtime_jail_duration"],
-        "SlashingMinSignedPerWindow": modules["slashing"]["min_signed_per_window"],
-        "SlashingSignedBlocksWindow": modules["slashing"]["signed_blocks_window"],
-        "SlashingSlashFractionDoubleSign": modules["slashing"]["slash_fraction_double_sign"],
-        "SlashingSlashFractionDowntime": modules["slashing"]["slash_fraction_downtime"],
-        "MintInflation": modules["mint"]["inflation"],
-        "MintAnnualProvisions": modules["mint"]["annual_provisions"],
-        "MintBlocksPerYear": modules["mint"]["blocks_per_year"],
-        "MintGoalBonded": modules["mint"]["goal_bonded"],
-        "MintInflationMax": modules["mint"]["inflation_max"],
-        "MintInflationMin": modules["mint"]["inflation_min"],
-        "MintInflationRateChange": modules["mint"]["inflation_rate_change"],
-        "IbcAllowedClients": json.encode(modules["ibc"]["allowed_clients"]),
-        "IbcMaxExpectedTimePerBlock": modules["ibc"]["max_expected_time_per_block"]
+        # ---- header & consensus ----
+        "AppVersion":                  chain_cfg["app_version"],
+        "ChainID":                     chain_id,
+        "GenesisTime":                 _get_genesis_time(plan, chain_cfg["genesis_delay"]),
+        "InitialHeight":               chain_cfg["initial_height"],
+        "BlockMaxBytes":               chain_cfg["consensus"]["block_max_bytes"],
+        "BlockMaxGas":                 chain_cfg["consensus"]["block_max_gas"],
+        "EvidenceMaxAgeNumBlocks":     chain_cfg["consensus"]["evidence_max_age_num_blocks"],
+        "EvidenceMaxAgeDuration":      chain_cfg["consensus"]["evidence_max_age_duration"],
+        "EvidenceMaxBytes":            chain_cfg["consensus"]["evidence_max_bytes"],
+        "ValidatorPubKeyTypes":        json.encode(chain_cfg["consensus"]["validator_pub_key_types"]),
+
+        # ---- auth params ----
+        "AuthMaxMemoCharacters":       chain_cfg["modules"]["auth"]["max_memo_characters"],
+        "AuthTxSigLimit":              chain_cfg["modules"]["auth"]["tx_sig_limit"],
+        "AuthTxSizeCostPerByte":       chain_cfg["modules"]["auth"]["tx_size_cost_per_byte"],
+        "AuthSigVerifyCostEd25519":    chain_cfg["modules"]["auth"]["sig_verify_cost_ed25519"],
+        "AuthSigVerifyCostSecp256k1":  chain_cfg["modules"]["auth"]["sig_verify_cost_secp256k1"],
+
+        # ---- bank / denom ----
+        "DenomName":                   chain_cfg["denom"]["name"],
+        "DenomDisplay":                chain_cfg["denom"]["display"],
+        "DenomSymbol":                 chain_cfg["denom"]["symbol"],
+        "DenomDescription":            chain_cfg["denom"]["description"],
+
+        # ---- mint ----
+        "MintInflation":               chain_cfg["modules"]["mint"]["inflation"],
+        "MintAnnualProvisions":        chain_cfg["modules"]["mint"]["annual_provisions"],
+        "MintBlocksPerYear":           chain_cfg["modules"]["mint"]["blocks_per_year"],
+        "MintGoalBonded":              chain_cfg["modules"]["mint"]["goal_bonded"],
+        "MintInflationMax":            chain_cfg["modules"]["mint"]["inflation_max"],
+        "MintInflationMin":            chain_cfg["modules"]["mint"]["inflation_min"],
+        "MintInflationRateChange":     chain_cfg["modules"]["mint"]["inflation_rate_change"],
+
+        # ---- THORChain specifics ----
+        "Reserve":                     chain_cfg["reserve_amount"],
+        "ChainContracts":              contracts_json,
+        "NodeAccounts":                nodeacc_json,
+
+        # ---- module‑account & balances ----
+        "BondModuleAddr":              BOND_MODULE_ADDR,
+        "Accounts":                    accounts_json,
+        "Balances":                    balances_json,
     }
 
-    genesis_template = "templates/genesis_thorchain.json.tmpl"
-    genesis_file = plan.render_templates(
-        config={
-            "genesis.json": struct(
-                template=read_file(genesis_template),
-                data=genesis_data
-            )
-        },
-        name="{}-genesis-file-template".format(chain_name)
+    plan.print(genesis_data)
+
+    gen_file = plan.render_templates(
+        config={"genesis.json": struct(
+            template=read_file("templates/genesis_thorchain.json.tmpl"),
+            data   = genesis_data,
+        )},
+        name="{}-genesis-render".format(chain_cfg["name"]),
     )
 
-    files = {
-        "/tmp/genesis": genesis_file,
+    plan.remove_service("genesis-service")
+
+    return {
+        "genesis_file": gen_file,
+        "mnemonics":    mnemonics,
+        "addresses":    addresses,
     }
 
+
+################################################################################
+# -------- helper functions below (unchanged unless noted) ---------
+################################################################################
+def _start_genesis_service(plan, chain_cfg, binary, config_dir):
+    """
+    Launches a tiny container with thornode binaries and an empty /tmp folder.
+    """
     plan.add_service(
         name="genesis-service",
         config=ServiceConfig(
             image="registry.gitlab.com/thorchain/thornode:mainnet",
-            files=files
+            files={},
         )
     )
+    # ensure thornode home exists
+    plan.exec("genesis-service", ExecRecipe(command=["mkdir", "-p", config_dir]))
 
-def generate_keys(plan, total_count, chain_id, binary, config_path):
-    addresses = []
-    mnemonics = []
-    pub_keys = []
-    for i in range(total_count):
-        keyring_flags = "--keyring-backend test"
 
-        keys_command = "{} keys add validator{} {} --output json".format(binary, i, keyring_flags)
-        key_result = plan.exec(
-            service_name="genesis-service",
-            recipe=ExecRecipe(
-                command=["/bin/sh", "-c", keys_command],
-                extract={
-                    "validator_address": "fromjson | .address",
-                    "mnemonic": "fromjson | .mnemonic"
-                }
-            )
-        )
+def _generate_validator_keys(plan, binary, chain_id, count):
+    """
+    Returns 5 parallel arrays (mnemonics, bech32 addresses, secp pk, ed pk, cons pk)
+    """
+    m, addr, secp, ed, cons = [], [], [], [], []
 
-        key_address = key_result["extract.validator_address"]
-        mnemonic = key_result["extract.mnemonic"]
-        addresses.append(key_address)
-        mnemonics.append(mnemonic)
-        thornode_args = "--chain-id {}".format(chain_id)
+    for i in range(count):
+        kr_flags = "--keyring-backend test"
+        # 1. CLI key
+        cmd = "{} keys add validator{} {} --output json".format(binary, i, kr_flags)
+        plan.print(cmd)
+        res = plan.exec("genesis-service", ExecRecipe(
+            command=["/bin/sh", "-c", cmd],
+            extract={"addr": "fromjson | .address", "mnemonic": "fromjson | .mnemonic"}
+        ))
+        addr.append(res["extract.addr"].replace("\n", ""))
+        m.append(res["extract.mnemonic"].replace("\n", ""))
 
-        init_command = "printf '%s\n\n\n\n' '{}' | {} init validator{} --recover {}".format(mnemonic, binary, i, thornode_args)
-        plan.exec(
-            service_name = "genesis-service",
-            recipe = ExecRecipe(
-                command = ["/bin/sh", "-c", init_command]
-            )
-        )
+        thornode_flags  = "--chain-id {}".format(chain_id)
+        _init_empty_chain(plan, binary, res["extract.mnemonic"].replace("\n", ""), thornode_flags)
 
-        pubkey_command = "cat {}/priv_validator_key.json".format(config_path, chain_id)
-        pubkey_result = plan.exec(
-            service_name="genesis-service",
-            recipe=ExecRecipe(
-                command=["/bin/sh", "-c", pubkey_command],
-                extract={
-                    "pub_key": "fromjson | .pub_key.value"
-                }
-            )
-        )
-        pubkey_json = '{{"@type":"/cosmos.crypto.ed25519.PubKey", "key": "{}"}}'.format(pubkey_result["extract.pub_key"])
-        pub_keys.append(pubkey_json)
+        # 2. secp256k1 pk
+        pk_cmd = "{0} keys show validator{1} --pubkey {2} | {0} pubkey | tr -d '\\n'".format(binary, i, kr_flags)
+        plan.print(pk_cmd)
+        cons_res = plan.exec("genesis-service", ExecRecipe(
+            command=["/bin/sh", "-c", pk_cmd],
+        ))
+        secp.append(cons_res["output"])
 
-        genesis_remove_command = "rm {}/genesis.json".format(config_path)
-        plan.exec(
-            service_name="genesis-service",
-            recipe=ExecRecipe(
-                command=["/bin/sh", "-c", genesis_remove_command]
-            )
-        )
+        # 3. validator consensus pk
+        cons_cmd = "{0} tendermint show-validator | {0} pubkey --bech cons | tr -d '\\n'".format(binary)
+        plan.print(cons_cmd)
+        cons_res = plan.exec("genesis-service", ExecRecipe(
+            command=["/bin/sh", "-c", cons_cmd],
+        ))
+        cons.append(cons_res["output"])
 
-    return mnemonics, addresses, pub_keys
+        # 4. ed25519 pk
+        ed_cmd = "{0} tendermint show-validator | {0} pubkey | tr -d '\\n'".format(binary)
+        plan.print(ed_cmd)
+        ed_res = plan.exec("genesis-service", ExecRecipe(
+            command=["/bin/sh", "-c", ed_cmd]
+        ))
+        ed.append(ed_res["output"])
 
-def init_genesis(plan, binary, config_path, thornode_args):
-    init_command = "{} init node1 {}".format(binary, thornode_args)
-    plan.exec(
-        service_name="genesis-service",
-        recipe=ExecRecipe(
-            command=["/bin/sh", "-c", init_command]
-        )
-    )
+        # Remove auto‑created genesis so we can drop in our rendered one later
+        # plan.exec("genesis-service", ExecRecipe(
+        #     command=["rm", "-f", "{}/genesis.json".format(config_dir)]
+        # ))
 
-    genesis_path = "{}/genesis.json".format(config_path)
-    move_command = "mv -f /tmp/genesis/genesis.json {}".format(genesis_path)
-    plan.exec(
-        service_name="genesis-service",
-        recipe=ExecRecipe(
-            command=["/bin/sh", "-c", move_command]
-        )
-    )
+    return m, addr, secp, ed, cons
 
-def add_accounts(plan, addresses, account_balances, binary):
-    for i, address in enumerate(addresses):
-        add_account_command = "{} genesis add-genesis-account {} {}".format(binary, address, account_balances[i])
-        plan.exec(
-            service_name="genesis-service",
-            recipe=ExecRecipe(
-                command=["/bin/sh", "-c", add_account_command]
-            )
-        )
 
-def add_faucet(plan, faucet_amount, chain_name, denom_name, binary):
+def _init_empty_chain(plan, binary, mnemonic, thornode_flags):
+    cmd = "/bin/sh", "-c", "echo {} | {} init local --recover {}".format(mnemonic, binary, thornode_flags)
+    plan.print(cmd)
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh", "-c", "echo {} | {} init local --recover {}".format(mnemonic, binary, thornode_flags)]))
 
-    keyring_flags = "--keyring-backend test"
 
-    keys_command = "{} keys add faucet-{} {} --output json".format(binary, chain_name, keyring_flags)
-    key_result = plan.exec(
-        service_name="genesis-service",
-        recipe=ExecRecipe(
-            command=["/bin/sh", "-c", keys_command],
-            extract={
-                "faucet_address": "fromjson | .address",
-                "mnemonic": "fromjson | .mnemonic"
-            }
-        )
-    )
+def _add_balances(plan, binary, addresses, amounts):
+    for a, amt in zip(addresses, amounts):
+        cmd = "/bin/sh", "-c", "{} genesis add-genesis-account {} {}rune".format(binary, a, amt)
+        plan.print(cmd)
+        plan.exec("genesis-service", ExecRecipe(
+            command=["/bin/sh", "-c", "{} genesis add-genesis-account {} {}rune".format(binary, a, amt)]
+        ))
 
-    faucet_address = key_result["extract.faucet_address"]
-    faucet_mnemonic = key_result["extract.mnemonic"]
 
-    add_account_command = "{} genesis add-genesis-account {} {}{}".format(binary, faucet_address, faucet_amount, denom_name)
-    plan.exec(
-        service_name="genesis-service",
-        recipe=ExecRecipe(
-            command=["/bin/sh", "-c", add_account_command]
-        )
-    )
+def _mk_accounts_array(addrs):
+    return [{
+        "@type": "/cosmos.auth.v1beta1.BaseAccount",
+        "address": a,
+        "pub_key": None,
+        "account_number": "0",
+        "sequence": "0",
+    } for a in addrs]
 
-    return faucet_mnemonic, faucet_address
 
-def get_genesis_time(plan, genesis_delay):
+def _mk_balances_array(addrs, amounts):
+    balances = []
+    count = 0
+    for addr in addrs:
+        balances.append({"address": addr, "coins": [{"denom": "rune", "amount": amounts[count]}]})
+    return balances
+
+
+def _get_genesis_time(plan, genesis_delay):
     result = plan.run_python(
         description="Calculating genesis time",
         run="""
