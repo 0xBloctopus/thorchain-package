@@ -11,21 +11,21 @@ def run(plan, args):
 
     networks = network_launcher.launch_network(plan, genesis_files, parsed_args)
 
-    service_launchers = {
-        "faucet": faucet.launch_faucet,
-        "explorer": explorer.launch_explorer
-    }
-
-    # Launch additional services for each chain
-    for chain in parsed_args["chains"]:
-        chain_name = chain["name"]
-        chain_id = chain["chain_id"]
-        additional_services = chain.get("additional_services", [])
-
-        node_info = networks[chain_name]
-        node_names = []
-        for node in node_info:
-            node_names.append(node["name"])
+    # service_launchers = {
+    #     "faucet": faucet.launch_faucet,
+    #     "explorer": explorer.launch_explorer
+    # }
+    #
+    # # Launch additional services for each chain
+    # for chain in parsed_args["chains"]:
+    #     chain_name = chain["name"]
+    #     chain_id = chain["chain_id"]
+    #     additional_services = chain.get("additional_services", [])
+    #
+    #     node_info = networks[chain_name]
+    #     node_names = []
+    #     for node in node_info:
+    #         node_names.append(node["name"])
 
         # Wait until first block is produced before deploying additional services
         # plan.wait(
@@ -45,14 +45,14 @@ def run(plan, args):
         #     description = "Waiting for first block for chain " + chain_name
         # )
 
-        for service in service_launchers:
-            if service in additional_services:
-                plan.print("Launching {} for chain {}".format(service, chain_name))
-                if service == "faucet":
-                    faucet_mnemonic = genesis_files[chain_name]["faucet"]["mnemonic"]
-                    transfer_amount = chain["faucet"]["transfer_amount"]
-                    service_launchers[service](plan, chain_name, chain_id, faucet_mnemonic, transfer_amount)
-                elif service == "explorer":
-                    service_launchers[service](plan, chain_name, chain_id, node_info)
+        # for service in service_launchers:
+        #     if service in additional_services:
+        #         plan.print("Launching {} for chain {}".format(service, chain_name))
+        #         if service == "faucet":
+        #             faucet_mnemonic = genesis_files[chain_name]["faucet"]["mnemonic"]
+        #             transfer_amount = chain["faucet"]["transfer_amount"]
+        #             service_launchers[service](plan, chain_name, chain_id, faucet_mnemonic, transfer_amount)
+        #         elif service == "explorer":
+        #             service_launchers[service](plan, chain_name, chain_id, node_info)
 
     plan.print(genesis_files)

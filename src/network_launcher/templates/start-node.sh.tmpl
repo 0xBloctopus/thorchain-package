@@ -1,7 +1,6 @@
 BINARY="{{ .Binary }}"
 CONFIG_FOLDER="{{ .ConfigFolder }}"
 # The Thornode *home* directory is the parent of CONFIG_FOLDER
-NODE_HOME="$(dirname "$CONFIG_FOLDER")"
 THORNODE_ARGS="{{ .ThorNodeArgs }}"
 SEED_OPTIONS="{{ .SeedOptions }}"
 MNEMONIC="{{ .Mnemonic }}"
@@ -9,55 +8,51 @@ NODE_NAME="{{ .NodeName }}"
 
 echo "Starting Thorchain node: $NODE_NAME"
 
+# Import the validator key
+printf '%s\n\n\n\n' "$MNEMONIC" | $BINARY keys add validator --recover --keyring-backend test
+
 # Initialize the node with the mnemonic
-echo "$MNEMONIC" | $BINARY init "$NODE_NAME" --recover --home "$NODE_HOME" $THORNODE_ARGS
+echo "$MNEMONIC" | $BINARY init "$NODE_NAME" --recover $THORNODE_ARGS
 
 # Copy the genesis file again after init (in case init overwrote it)
 mkdir -p "$CONFIG_FOLDER"
 cp /tmp/genesis/genesis.json "$CONFIG_FOLDER/genesis.json"
 
-# Configure the node
-$BINARY config chain-id {{ .ChainID }} --home "$NODE_HOME"
-$BINARY config keyring-backend test --home "$NODE_HOME"
-
-# Import the validator key
-printf '%s\n\n\n\n' "$MNEMONIC" | $BINARY keys add validator --recover --keyring-backend test --home "$NODE_HOME"
-
 # Configure node settings
-sed -i 's/^minimum-gas-prices = ""/minimum-gas-prices = "0rune"/' $CONFIG_FOLDER/config/app.toml
-sed -i 's/^enable = false/enable = true/' $CONFIG_FOLDER/config/app.toml
-sed -i 's/^swagger = false/swagger = true/' $CONFIG_FOLDER/config/app.toml
+sed -i 's/^minimum-gas-prices = ""/minimum-gas-prices = "0rune"/' $CONFIG_FOLDER/app.toml
+sed -i 's/^enable = false/enable = true/' $CONFIG_FOLDER/app.toml
+sed -i 's/^swagger = false/swagger = true/' $CONFIG_FOLDER/app.toml
 
 # Configure consensus settings
-sed -i 's/^timeout_commit = "5s"/timeout_commit = "1s"/' $CONFIG_FOLDER/config/config.toml
-sed -i 's/^timeout_propose = "3s"/timeout_propose = "1s"/' $CONFIG_FOLDER/config/config.toml
+sed -i 's/^timeout_commit = "5s"/timeout_commit = "1s"/' $CONFIG_FOLDER/config.toml
+sed -i 's/^timeout_propose = "3s"/timeout_propose = "1s"/' $CONFIG_FOLDER/config.toml
 
 # Configure P2P settings
-sed -i 's/^addr_book_strict = true/addr_book_strict = false/' $CONFIG_FOLDER/config/config.toml
-sed -i 's/^external_address = ""/external_address = "0.0.0.0:26656"/' $CONFIG_FOLDER/config/config.toml
+sed -i 's/^addr_book_strict = true/addr_book_strict = false/' $CONFIG_FOLDER/config.toml
+sed -i 's/^external_address = ""/external_address = "0.0.0.0:26656"/' $CONFIG_FOLDER/config.toml
 
 # Configure RPC settings
-sed -i 's/^laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/' $CONFIG_FOLDER/config/config.toml
-sed -i 's/^cors_allowed_origins = \[\]/cors_allowed_origins = ["*"]/' $CONFIG_FOLDER/config/config.toml
+sed -i 's/^laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/' $CONFIG_FOLDER/config.toml
+sed -i 's/^cors_allowed_origins = \[\]/cors_allowed_origins = ["*"]/' $CONFIG_FOLDER/config.toml
 
 # Configure gRPC settings
-sed -i 's/^address = "localhost:9090"/address = "0.0.0.0:9090"/' $CONFIG_FOLDER/config/app.toml
+sed -i 's/^address = "localhost:9090"/address = "0.0.0.0:9090"/' $CONFIG_FOLDER/app.toml
 
 # Configure API settings
-sed -i 's/^address = "tcp:\/\/localhost:1317"/address = "tcp:\/\/0.0.0.0:1317"/' $CONFIG_FOLDER/config/app.toml
-sed -i 's/^enabled-unsafe-cors = false/enabled-unsafe-cors = true/' $CONFIG_FOLDER/config/app.toml
+sed -i 's/^address = "tcp:\/\/localhost:1317"/address = "tcp:\/\/0.0.0.0:1317"/' $CONFIG_FOLDER/app.toml
+sed -i 's/^enabled-unsafe-cors = false/enabled-unsafe-cors = true/' $CONFIG_FOLDER/app.toml
 
 # Configure Prometheus
-sed -i 's/^prometheus = false/prometheus = true/' $CONFIG_FOLDER/config/config.toml
-sed -i 's/^prometheus_listen_addr = ":26660"/prometheus_listen_addr = "0.0.0.0:26660"/' $CONFIG_FOLDER/config/config.toml
+sed -i 's/^prometheus = false/prometheus = true/' $CONFIG_FOLDER/config.toml
+sed -i 's/^prometheus_listen_addr = ":26660"/prometheus_listen_addr = "0.0.0.0:26660"/' $CONFIG_FOLDER/config.toml
 
 echo "Node configuration completed"
 
 # Start the node with seed options if provided
 if [ -n "$SEED_OPTIONS" ]; then
     echo "Starting node with seeds: $SEED_OPTIONS"
-    exec $BINARY start --home "$NODE_HOME" $SEED_OPTIONS $THORNODE_ARGS
+    #exec $BINARY start $SEED_OPTIONS $THORNODE_ARGS
 else
     echo "Starting seed node (no seeds configured)"
-    exec $BINARY start --home "$NODE_HOME" $THORNODE_ARGS
+    exec printf 'validator0\nTestPassword!\n' | $BINARY start $THORNODE_ARGS
 fi
