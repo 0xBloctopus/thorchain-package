@@ -27,6 +27,7 @@ def _one_chain(plan, chain_cfg):
             account_balances.append("{}".format(participant["account_balance"]))
             if participant.get("staking", True):
                 bond_amounts.append("{}".format(participant["bond_amount"]))
+        account_balances.append("{}".format(chain_cfg["faucet"]["faucet_amount"]))
 
     # -------------------------------------------------------------------------
     # 1) Generate files & keys in a disposable container
@@ -220,10 +221,13 @@ def _generate_validator_keys(plan, binary, chain_id, count):
         ))
         ed.append(ed_res["output"])
 
-        # Remove auto‑created genesis so we can drop in our rendered one later
-        # plan.exec("genesis-service", ExecRecipe(
-        #     command=["rm", "-f", "{}/genesis.json".format(config_dir)]
-        # ))
+    # Create faucet account
+    res = plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "-c", "{} keys add faucet --keyring-backend test --output json".format(binary)],
+        extract={"addr": "fromjson | .address", "mnemonic": "fromjson | .mnemonic"}
+    ))
+    addr.append(res["extract.addr"].replace("\n", ""))
+    m.append(res["extract.mnemonic"].replace("\n", ""))
 
     return m, addr, secp, ed, cons
 
