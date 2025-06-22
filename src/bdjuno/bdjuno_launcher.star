@@ -113,9 +113,9 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
             files = {
                 "/bdjuno/.bdjuno": bdjuno_config_artifact,
                 "/tmp/genesis": genesis_file_artifact,
-                "/usr/local/bin": bdjuno_start_artifact,
+                "/usr/local/bin/scripts": bdjuno_start_artifact,
             },
-            cmd = ["/bin/sh", "/usr/local/bin/start_bdjuno.sh"],
+            cmd = ["/bin/sh", "/usr/local/bin/scripts/start_bdjuno.sh"],
         )
     )
 
