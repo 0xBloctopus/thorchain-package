@@ -1,0 +1,33 @@
+events {
+    worker_connections 1024;
+}
+
+http {
+    server {
+        listen 80;
+
+        # Route HTTP and WebSocket requests for GraphQL
+        location /v1/graphql {
+            proxy_pass http://{{ .HarusaIP }}:{{ .HarusaPort }}/v1/graphql;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+        }
+
+        # Route WebSocket requests for Node RPC
+        location /websocket {
+            proxy_pass http://{{ .NodeIP }}:{{ .NodePort }}/websocket;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+
+        # Other configurations for the big-dipper UI
+        location / {
+            proxy_pass http://{{ .BdIP }}:{{ .BdPort }};
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
+    }
+}
