@@ -108,7 +108,8 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
         config = ServiceConfig(
             image = "tiljordan/bdjuno-thorchain:1.0.0",
             ports = {
-                "bdjuno": PortSpec(number=26657, transport_protocol="TCP", wait = None)
+                "bdjuno": PortSpec(number=26657, transport_protocol="TCP", wait = None),
+                "actions": PortSpec(number=3000, transport_protocol="TCP", wait = None)
             },
             files = {
                 "/bdjuno/.bdjuno": bdjuno_config_artifact,
@@ -139,11 +140,12 @@ def launch_hasura_service(plan, postgres_service, chain_name):
                 "HASURA_GRAPHQL_ENABLED_LOG_TYPES": "startup, http-log, webhook-log",
                 "HASURA_GRAPHQL_ADMIN_SECRET": "myadminsecretkey",
                 "HASURA_GRAPHQL_METADATA_DIR": "/hasura/metadata",
-                "ACTION_BASE_URL": "http://0.0.0.0:3000",
+                "ACTION_BASE_URL": "http://{}-bdjuno-service:3000".format(chain_name),
                 "HASURA_GRAPHQL_SERVER_PORT": "8080"
             }
         )
     )
+
     return hasura_service
 
 

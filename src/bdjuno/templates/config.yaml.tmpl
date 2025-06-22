@@ -8,6 +8,7 @@ chain:
         - consensus
         - mint
         - pricefeed
+        - actions
 node:
     type: remote
     config:
@@ -59,3 +60,7 @@ pricefeed:
         - denom: "rune"
           exponent: 8
           price_id: "thorchain"
+
+actions:
+    host: 127.0.0.1
+    port: 3000
