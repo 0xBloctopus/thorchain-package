@@ -75,8 +75,8 @@
   "participants": [
     {
       "image": "registry.gitlab.com/thorchain/thornode:mainnet",
-      "account_balance": 100000000000,
-      "bond_amount": "30000000000000",
+      "account_balance": 1000000000000000,
+      "bond_amount": "300000000000000",
       "count": 1,
       "staking": true,
       "min_cpu": 500,
@@ -85,6 +85,6 @@
   ],
   "additional_services": [
     "faucet",
-    "explorer"
+    "bdjuno"
   ]
 }
