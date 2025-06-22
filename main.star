@@ -3,6 +3,7 @@ genesis_generator = import_module("./src/genesis-generator/genesis_generator.sta
 faucet = import_module("./src/faucet/faucet_launcher.star")
 network_launcher = import_module("./src/network_launcher/network_launcher.star")
 explorer = import_module("./src/explorer/explorer_launcher.star")
+bdjuno = import_module("./src/bdjuno/bdjuno_launcher.star")
 
 def run(plan, args):
     parsed_args = input_parser.input_parser(args)
@@ -12,7 +13,8 @@ def run(plan, args):
     networks = network_launcher.launch_network(plan, genesis_files, parsed_args)
 
     service_launchers = {
-        "faucet": faucet.launch_faucet
+        "faucet": faucet.launch_faucet,
+        "bdjuno": bdjuno.launch_bdjuno
     }
 
     # Launch additional services for each chain
@@ -53,5 +55,14 @@ def run(plan, args):
                     service_launchers[service](plan, chain_name, chain_id, faucet_mnemonic, transfer_amount)
                 elif service == "explorer":
                     service_launchers[service](plan, chain_name, chain_id, node_info)
+                elif service == "bdjuno":
+                    be_args = {
+                        "harusa_url": "",
+                        "harusa_ws": "",
+                        "node_rpc_url": "",
+                        "image": "tiljordan/big-dipper-ui:latest",
+                        "chain_type": "devnet"
+                    }
+                    service_launchers[service](plan, chain_name, be_args)
 
     plan.print(genesis_files)

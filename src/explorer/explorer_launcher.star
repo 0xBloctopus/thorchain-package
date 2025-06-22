@@ -41,6 +41,7 @@ echo "Setting up Thorchain Explorer v2..."
 apk add --no-cache git
 
 # Clone the thorchain-explorer-v2 repository
+mkdir -p /app
 cd /app
 git clone https://github.com/thorchain/thorchain-explorer-v2.git .
 
