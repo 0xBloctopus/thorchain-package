@@ -36,9 +36,9 @@ def launch_postgres_service(plan, chain_name):
                 "db": PortSpec(number=5432, transport_protocol="TCP", application_protocol="postgres")
             },
             env_vars = {
-                "POSTGRES_USER": "root",
+                "POSTGRES_USER": "bdjuno",
                 "POSTGRES_PASSWORD": "password",
-                "POSTGRES_DB": "root"
+                "POSTGRES_DB": "bdjuno"
             },
             files = {
                 "/tmp/database/schema": schema_files_artifact
@@ -49,7 +49,7 @@ def launch_postgres_service(plan, chain_name):
     # Command to execute SQL files
     init_db_command = (
             "for file in /tmp/database/schema/*.sql; do " +
-            "psql -U root -d root -f $file; " +
+            "psql -U bdjuno -d bdjuno -f $file; " +
             "done"
     )
 
@@ -108,7 +108,8 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
         config = ServiceConfig(
             image = "tiljordan/bdjuno-thorchain:1.0.0",
             ports = {
-                "bdjuno": PortSpec(number=26657, transport_protocol="TCP", wait = None)
+                "bdjuno": PortSpec(number=26657, transport_protocol="TCP", wait = None),
+                "actions": PortSpec(number=3000, transport_protocol="TCP", wait = None)
             },
             files = {
                 "/bdjuno/.bdjuno": bdjuno_config_artifact,
@@ -132,18 +133,20 @@ def launch_hasura_service(plan, postgres_service, chain_name):
             },
             env_vars = {
                 "HASURA_GRAPHQL_UNAUTHORIZED_ROLE": "anonymous",
-                "HASURA_GRAPHQL_METADATA_DATABASE_URL": "postgresql://root:password@" + postgres_service.ip_address + ":" + str(postgres_service.ports["db"].number) + "/root",
-                "PG_DATABASE_URL": "postgresql://root:password@" + postgres_service.ip_address + ":" + str(postgres_service.ports["db"].number) + "/root",
+                "HASURA_GRAPHQL_DATABASE_URL": "postgresql://bdjuno:password@" + postgres_service.ip_address + ":" + str(postgres_service.ports["db"].number) + "/bdjuno",
+                "HASURA_GRAPHQL_METADATA_DATABASE_URL": "postgresql://bdjuno:password@" + postgres_service.ip_address + ":" + str(postgres_service.ports["db"].number) + "/bdjuno",
+                "PG_DATABASE_URL": "postgresql://bdjuno:password@" + postgres_service.ip_address + ":" + str(postgres_service.ports["db"].number) + "/bdjuno",
                 "HASURA_GRAPHQL_ENABLE_CONSOLE": "true",
                 "HASURA_GRAPHQL_DEV_MODE": "false",
                 "HASURA_GRAPHQL_ENABLED_LOG_TYPES": "startup, http-log, webhook-log",
                 "HASURA_GRAPHQL_ADMIN_SECRET": "myadminsecretkey",
                 "HASURA_GRAPHQL_METADATA_DIR": "/hasura/metadata",
-                "ACTION_BASE_URL": "http://0.0.0.0:3000",
+                "ACTION_BASE_URL": "http://{}-bdjuno-service:3000".format(chain_name),
                 "HASURA_GRAPHQL_SERVER_PORT": "8080"
             }
         )
     )
+
     return hasura_service
 
 
