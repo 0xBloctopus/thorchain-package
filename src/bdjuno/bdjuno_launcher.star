@@ -1,4 +1,4 @@
-def launch_bdjuno(plan, chain_name, be_args):
+def launch_bdjuno(plan, chain_name):
     postgres_service = launch_postgres_service(plan, chain_name)
 
     # Get first node
@@ -10,13 +10,13 @@ def launch_bdjuno(plan, chain_name, be_args):
     launch_bdjuno_service(plan, postgres_service, first_node, chain_name)
 
     # Launch hasura service
-    harusa_service = launch_hasura_service(plan, postgres_service, chain_name)
+    hasura_service = launch_hasura_service(plan, postgres_service, chain_name)
 
-    # Launch big dipper UI block explorer
-    big_dipper_service = launch_big_dipper(plan, chain_name, be_args["harusa_url"], be_args["harusa_ws"], be_args["node_rpc_url"], be_args["image"], be_args["chain_type"])
+
+    big_dipper_service = launch_big_dipper(plan, chain_name)
 
     # Launch nginx reverse proxy to access explorer
-    launch_nginx(plan, big_dipper_service, harusa_service, first_node, chain_name)
+    launch_nginx(plan, big_dipper_service, hasura_service, first_node, chain_name)
 
     plan.print("BdJuno and Hasura started successfully")
 
@@ -106,7 +106,7 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
     bdjuno_service = plan.add_service(
         name = "{}-bdjuno-service".format(chain_name),
         config = ServiceConfig(
-            image = "tiljordan/bdjuno-thorchain:1.0.0",
+            image = "tiljordan/bdjuno-thorchain:1.0.1",
             ports = {
                 "bdjuno": PortSpec(number=26657, transport_protocol="TCP", wait = None),
                 "actions": PortSpec(number=3000, transport_protocol="TCP", wait = None)
@@ -150,18 +150,17 @@ def launch_hasura_service(plan, postgres_service, chain_name):
     return hasura_service
 
 
-def launch_big_dipper(plan,chain_name, harusa_url, harusa_ws, node_rpc_url, image, chain_type):
+def launch_big_dipper(plan,chain_name):
     big_dipper_service = plan.add_service(
         name="{}-big-dipper-service".format(chain_name),
         config=ServiceConfig(
-            image=image,
+            image="tiljordan/thorchain-ui:1.0.0",
             env_vars={
-                "NEXT_PUBLIC_CHAIN_TYPE": chain_type,
+                "NEXT_PUBLIC_CHAIN_TYPE": "Testnet",
                 "PORT": "3000",
-                "NEXT_PUBLIC_GRAPHQL_URL": harusa_url,
-                "NEXT_PUBLIC_GRAPHQL_WS": harusa_ws,
-                "NEXT_PUBLIC_RPC_WEBSOCKET": node_rpc_url,
-
+                "NEXT_PUBLIC_GRAPHQL_URL": "/v1/graphql",
+                "NEXT_PUBLIC_GRAPHQL_WS":  "/v1/graphql",
+                "NEXT_PUBLIC_RPC_WEBSOCKET": "/websocket",
             },
             ports={
                 "ui": PortSpec(number=3000, transport_protocol="TCP", wait=None)
@@ -173,21 +172,21 @@ def launch_big_dipper(plan,chain_name, harusa_url, harusa_ws, node_rpc_url, imag
 
 
 
-def launch_nginx(plan, big_dipper_service, harusa_service, node_service, chain_name):
+def launch_nginx(plan, big_dipper_service, hasura_service, node_service, chain_name):
     big_dipper_ip = big_dipper_service.ip_address
     big_dipper_port = big_dipper_service.ports["ui"].number
     node_ip = node_service.ip_address
     node_rpc_port = node_service.ports["rpc"].number
-    harusa_ip = harusa_service.ip_address
-    harusa_port = harusa_service.ports["graphql"].number
+    hasura_ip = hasura_service.ip_address
+    hasura_port = hasura_service.ports["graphql"].number
 
     nginx_config_data = {
         "NodeIP": node_ip,
         "NodePort": node_rpc_port,
         "BdIP": big_dipper_ip,
         "BdPort": big_dipper_port,
-        "HarusaIP": harusa_ip,
-        "HarusaPort": harusa_port
+        "HasuraIP": hasura_ip,
+        "HasuraPort": hasura_port
     }
     nginx_config_artifact = plan.render_templates(
         config = {

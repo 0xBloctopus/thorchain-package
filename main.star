@@ -56,13 +56,6 @@ def run(plan, args):
                 elif service == "explorer":
                     service_launchers[service](plan, chain_name, chain_id, node_info)
                 elif service == "bdjuno":
-                    be_args = {
-                        "harusa_url": "",
-                        "harusa_ws": "",
-                        "node_rpc_url": "",
-                        "image": "tiljordan/big-dipper-ui:latest",
-                        "chain_type": "devnet"
-                    }
-                    service_launchers[service](plan, chain_name, be_args)
+                    service_launchers[service](plan, chain_name)
 
     plan.print(genesis_files)
