@@ -106,7 +106,7 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
     bdjuno_service = plan.add_service(
         name = "{}-bdjuno-service".format(chain_name),
         config = ServiceConfig(
-            image = "tiljordan/bdjuno-thorchain:1.0.1",
+            image = "tiljordan/bdjuno-thorchain:1.0.2",
             ports = {
                 "bdjuno": PortSpec(number=26657, transport_protocol="TCP", wait = None),
                 "actions": PortSpec(number=3000, transport_protocol="TCP", wait = None)
@@ -154,7 +154,7 @@ def launch_big_dipper(plan,chain_name):
     big_dipper_service = plan.add_service(
         name="{}-big-dipper-service".format(chain_name),
         config=ServiceConfig(
-            image="tiljordan/thorchain-ui:1.0.0",
+            image="tiljordan/thorchain-ui:1.0.1",
             env_vars={
                 "NEXT_PUBLIC_CHAIN_TYPE": "Testnet",
                 "PORT": "3000",
