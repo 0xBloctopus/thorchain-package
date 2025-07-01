@@ -106,7 +106,7 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
     bdjuno_service = plan.add_service(
         name = "{}-bdjuno-service".format(chain_name),
         config = ServiceConfig(
-            image = "tiljordan/bdjuno-thorchain:1.0.2",
+            image = "tiljordan/bdjuno-thorchain:1.0.3",
             ports = {
                 "bdjuno": PortSpec(number=26657, transport_protocol="TCP", wait = None),
                 "actions": PortSpec(number=3000, transport_protocol="TCP", wait = None)
