@@ -22,9 +22,9 @@ def apply_chain_defaults(chain, defaults):
     for key, value in defaults["faucet"].items():
         chain["faucet"][key] = chain["faucet"].get(key, value)
 
-    chain["consensus_params"] = chain.get("consensus_params", {})
-    for key, value in defaults["consensus_params"].items():
-        chain["consensus_params"][key] = chain["consensus_params"].get(key, value)
+    chain["consensus"] = chain.get("consensus", {})
+    for key, value in defaults["consensus"].items():
+        chain["consensus"][key] = chain["consensus"].get(key, value)
 
     chain["modules"] = chain.get("modules", {})
     for module, module_defaults in defaults["modules"].items():
