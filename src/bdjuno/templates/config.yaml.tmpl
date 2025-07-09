@@ -8,6 +8,8 @@ chain:
         - consensus
         - mint
         - pricefeed
+        - actions
+        - thorchain
 node:
     type: remote
     config:
@@ -28,11 +30,11 @@ parsing:
     average_block_time: 1s
 
 database:
-    url: postgresql://root:password@{{ .PostgresIP }}:{{ .PostgresPort }}/root?sslmode=disable&search_path=public
-    name: root
+    url: postgresql://bdjuno:password@{{ .PostgresIP }}:{{ .PostgresPort }}/bdjuno?sslmode=disable&search_path=public
+    name: bdjuno
     host: postgres
     port: 5432
-    user: root
+    user: bdjuno
     password: password
     schema: public
     max_open_connections: 20
@@ -59,3 +61,7 @@ pricefeed:
         - denom: "rune"
           exponent: 8
           price_id: "thorchain"
+
+actions:
+    host: 127.0.0.1
+    port: 3000
