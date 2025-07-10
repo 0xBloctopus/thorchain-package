@@ -1,0 +1,6 @@
+chains:
+  - name: "thorchain-test"
+    type: "thorchain"
+    prefunded_accounts:
+      "thor1abc123def456ghi789jkl012mno345pqr678stu": "1000000000000"  # Address with amount
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about": "2000000000000"  # Mnemonic with amount
