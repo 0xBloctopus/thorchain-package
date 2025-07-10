@@ -29,6 +29,19 @@ def _one_chain(plan, chain_cfg):
                 bond_amounts.append("{}".format(participant["bond_amount"]))
         account_balances.append("{}".format(chain_cfg["faucet"]["faucet_amount"]))
 
+    # Process prefunded accounts
+    prefunded_addresses = []
+    prefunded_amounts = []
+    prefunded_mnemonics = []
+    
+    for account_key, amount in chain_cfg.get("prefunded_accounts", {}).items():
+        if account_key.startswith("thor"):  # It's an address
+            prefunded_addresses.append(account_key)
+            prefunded_amounts.append("{}".format(amount))
+        else:  # It's a mnemonic
+            prefunded_mnemonics.append(account_key)
+            prefunded_amounts.append("{}".format(amount))
+
     # -------------------------------------------------------------------------
     # 1) Generate files & keys in a disposable container
     # -------------------------------------------------------------------------
@@ -52,10 +65,16 @@ def _one_chain(plan, chain_cfg):
         count      = total_count,
     )
 
+    # Generate addresses from prefunded mnemonics
+    if prefunded_mnemonics:
+        prefunded_mnemonic_addresses = _generate_prefunded_addresses(plan, binary, prefunded_mnemonics)
+        prefunded_addresses.extend(prefunded_mnemonic_addresses)
+
     # -------------------------------------------------------------------------
     # 2) Write the *Cosmos* accounts & balances
     # -------------------------------------------------------------------------
-
+    
+    # Add validator and faucet accounts through thornode (these exist in keyring)
     _add_balances(plan, binary, addresses, account_balances)
 
     # -------------------------------------------------------------------------
@@ -82,10 +101,14 @@ def _one_chain(plan, chain_cfg):
     # -------------------------------------------------------------------------
     # 4) Build other dynamic lists (accounts, balances, chain contracts …)
     # -------------------------------------------------------------------------
-    accounts_json  = json.encode(_mk_accounts_array(addresses))
+    # Combine validator/faucet addresses with prefunded addresses for genesis
+    all_addresses = addresses + prefunded_addresses
+    all_amounts = account_balances + prefunded_amounts
+    
+    accounts_json  = json.encode(_mk_accounts_array(all_addresses))
     balances_json  = json.encode(_mk_balances_array(
-        addresses,
-        account_balances
+        all_addresses,
+        all_amounts
     ))
     contracts_json = json.encode(chain_cfg["chain_contracts"])
     nodeacc_json   = json.encode(node_accounts)
@@ -155,6 +178,8 @@ def _one_chain(plan, chain_cfg):
         "genesis_file": gen_file,
         "mnemonics":    mnemonics,
         "addresses":    addresses,
+        "prefunded_addresses": prefunded_addresses,
+        "prefunded_mnemonics": prefunded_mnemonics,
     }
 
 
@@ -240,10 +265,10 @@ def _init_empty_chain(plan, binary, mnemonic, thornode_flags):
 
 def _add_balances(plan, binary, addresses, amounts):
     for a, amt in zip(addresses, amounts):
-        cmd = "/bin/sh", "-c", "{} genesis add-genesis-account {} {}rune".format(binary, a, amt)
+        cmd = "/bin/sh", "-c", "{} genesis add-genesis-account {} {}rune --keyring-backend test".format(binary, a, amt)
         plan.print(cmd)
         plan.exec("genesis-service", ExecRecipe(
-            command=["/bin/sh", "-c", "{} genesis add-genesis-account {} {}rune".format(binary, a, amt)]
+            command=["/bin/sh", "-c", "{} genesis add-genesis-account {} {}rune --keyring-backend test".format(binary, a, amt)]
         ))
 
 
@@ -263,6 +288,24 @@ def _mk_balances_array(addrs, amounts):
     for addr in addrs:
         balances.append({"address": addr, "coins": [{"denom": "rune", "amount": amounts[count]}]})
     return balances
+
+
+def _generate_prefunded_addresses(plan, binary, mnemonics):
+    """
+    Convert mnemonics to addresses for prefunded accounts
+    """
+    addresses = []
+    for i, mnemonic in enumerate(mnemonics):
+        kr_flags = "--keyring-backend test"
+        # Import the mnemonic and get the address
+        cmd = "echo '{}' | {} keys add prefunded{} {} --recover --output json".format(mnemonic, binary, i, kr_flags)
+        plan.print(cmd)
+        res = plan.exec("genesis-service", ExecRecipe(
+            command=["/bin/sh", "-c", cmd],
+            extract={"addr": "fromjson | .address"}
+        ))
+        addresses.append(res["extract.addr"].replace("\n", ""))
+    return addresses
 
 
 def _get_genesis_time(plan, genesis_delay):
