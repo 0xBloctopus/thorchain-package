@@ -51,6 +51,10 @@ def apply_chain_defaults(chain, defaults):
     if "additional_services" not in chain:
         chain["additional_services"] = defaults["additional_services"]
 
+    # Apply defaults to prefunded_accounts
+    if "prefunded_accounts" not in chain:
+        chain["prefunded_accounts"] = {}
+
     return chain
 
 def validate_input_args(input_args):
