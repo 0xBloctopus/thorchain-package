@@ -12,6 +12,9 @@ def apply_chain_defaults(chain, defaults):
     chain["chain_id"] = chain.get("chain_id", defaults["chain_id"])
     chain["genesis_delay"] = chain.get("genesis_delay", defaults["genesis_delay"])
     chain["initial_height"] = chain.get("initial_height", defaults["initial_height"])
+    chain["chain_contracts"] = chain.get("chain_contracts", defaults["chain_contracts"])
+    chain["app_version"] = chain.get("app_version", defaults["app_version"])
+    chain["reserve_amount"] = chain.get("reserve_amount", defaults["reserve_amount"])
 
     # Nested defaults
     chain["denom"] = chain.get("denom", {})
