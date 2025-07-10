@@ -25,13 +25,14 @@ chains:
 
 To generate mnemonics and convert them to THORChain addresses in TypeScript, use the following approach:
 
+**Method 1: Generate from entropy (more control)**
 ```typescript
-import { generateMnemonic } from '@cosmjs/crypto';
-import { stringToPath } from '@cosmjs/crypto';
+import { Random, Bip39, stringToPath } from '@cosmjs/crypto';
 import { Secp256k1HdWallet } from '@cosmjs/amino';
 
-// Generate a new mnemonic
-const mnemonic = generateMnemonic();
+// Generate entropy and convert to mnemonic
+const entropy = Random.getBytes(32);
+const mnemonic = Bip39.encode(entropy).toString();
 console.log('Generated mnemonic:', mnemonic);
 
 // Convert to THORChain address
@@ -41,6 +42,23 @@ const wallet = await Secp256k1HdWallet.fromMnemonic(mnemonic, {
 });
 
 const [{ address }] = await wallet.getAccounts();
+console.log('THORChain address:', address);
+```
+
+**Method 2: Direct generation (simpler)**
+```typescript
+import { stringToPath } from '@cosmjs/crypto';
+import { Secp256k1HdWallet } from '@cosmjs/amino';
+
+// Generate wallet directly with 12-word mnemonic
+const wallet = await Secp256k1HdWallet.generate(12, {
+  prefix: 'thor',
+  hdPaths: [stringToPath("m/44'/931'/0'/0/0")]
+});
+
+const mnemonic = wallet.mnemonic;
+const [{ address }] = await wallet.getAccounts();
+console.log('Generated mnemonic:', mnemonic);
 console.log('THORChain address:', address);
 ```
 
@@ -67,6 +85,126 @@ You have two options for prefunding accounts:
    prefunded_accounts:
      "your twelve word mnemonic phrase goes here like this example": "1000000000000"
    ```
+
+## Go Address Derivation
+
+### Method 1: Using THORNode CLI (Recommended)
+
+The thorchain-package uses the THORNode CLI for reliable address derivation:
+
+```go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "os/exec"
+    "strings"
+)
+
+type KeyOutput struct {
+    Address  string `json:"address"`
+    Mnemonic string `json:"mnemonic"`
+}
+
+func generateThorchainAddress(mnemonic string) (string, error) {
+    // Use thornode CLI to recover address from mnemonic
+    cmd := exec.Command("sh", "-c", 
+        fmt.Sprintf("echo '%s' | thornode keys add temp --keyring-backend test --recover --output json", mnemonic))
+    
+    output, err := cmd.Output()
+    if err != nil {
+        return "", fmt.Errorf("failed to generate address: %v", err)
+    }
+    
+    var keyOutput KeyOutput
+    if err := json.Unmarshal(output, &keyOutput); err != nil {
+        return "", fmt.Errorf("failed to parse output: %v", err)
+    }
+    
+    // Clean up the temporary key
+    exec.Command("thornode", "keys", "delete", "temp", "--keyring-backend", "test", "--yes").Run()
+    
+    return keyOutput.Address, nil
+}
+
+func main() {
+    mnemonic := "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+    address, err := generateThorchainAddress(mnemonic)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    fmt.Printf("THORChain address: %s\n", address)
+}
+```
+
+### Method 2: Using Cosmos SDK (Alternative)
+
+For applications that prefer using the Cosmos SDK directly:
+
+```go
+package main
+
+import (
+    "fmt"
+    
+    "github.com/cosmos/cosmos-sdk/crypto/hd"
+    "github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+    "github.com/cosmos/cosmos-sdk/types/bech32"
+    "github.com/cosmos/go-bip39"
+)
+
+func generateThorchainAddressSDK(mnemonic string) (string, error) {
+    // Generate seed from mnemonic
+    seed, err := bip39.NewSeedWithErrorChecking(mnemonic, "")
+    if err != nil {
+        return "", fmt.Errorf("invalid mnemonic: %v", err)
+    }
+    
+    // Derive private key using THORChain's derivation path (m/44'/931'/0'/0/0)
+    derivedPriv, err := hd.Secp256k1.Derive()(seed, "m/44'/931'/0'/0/0", "")
+    if err != nil {
+        return "", fmt.Errorf("failed to derive private key: %v", err)
+    }
+    
+    // Generate secp256k1 private key
+    privKey := &secp256k1.PrivKey{Key: derivedPriv}
+    
+    // Get public key and convert to address
+    pubKey := privKey.PubKey()
+    addr := pubKey.Address()
+    
+    // Encode with THORChain's bech32 prefix "thor"
+    bech32Addr, err := bech32.ConvertAndEncode("thor", addr)
+    if err != nil {
+        return "", fmt.Errorf("failed to encode address: %v", err)
+    }
+    
+    return bech32Addr, nil
+}
+
+func main() {
+    mnemonic := "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+    address, err := generateThorchainAddressSDK(mnemonic)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+    fmt.Printf("THORChain address: %s\n", address)
+}
+```
+
+### Required Go Dependencies
+
+For the Cosmos SDK approach, add these dependencies to your `go.mod`:
+
+```go
+require (
+    github.com/cosmos/cosmos-sdk v0.47.0
+    github.com/cosmos/go-bip39 v1.0.0
+)
+```
 
 ## How It Works
 
