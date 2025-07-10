@@ -154,7 +154,7 @@ def launch_big_dipper(plan,chain_name):
     big_dipper_service = plan.add_service(
         name="{}-big-dipper-service".format(chain_name),
         config=ServiceConfig(
-            image="tiljordan/thorchain-ui:1.0.1",
+            image="tiljordan/thorchain-ui:1.0.2",
             env_vars={
                 "NEXT_PUBLIC_CHAIN_TYPE": "Testnet",
                 "PORT": "3000",
