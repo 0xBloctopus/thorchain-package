@@ -163,13 +163,14 @@ def launch_big_dipper(plan,chain_name):
     big_dipper_service = plan.add_service(
         name="{}-big-dipper-service".format(chain_name),
         config=ServiceConfig(
-            image="tiljordan/thorchain-ui:1.0.3",
+            image="tiljordan/thorchain-ui:1.0.13",
             env_vars={
                 "NEXT_PUBLIC_CHAIN_TYPE": "Testnet",
                 "PORT": "3000",
                 "NEXT_PUBLIC_GRAPHQL_URL": "/v1/graphql",
-                "NEXT_PUBLIC_GRAPHQL_WS":  "/v1/graphql",
+                "NEXT_PUBLIC_GRAPHQL_WS": "/v1/graphql",
                 "NEXT_PUBLIC_RPC_WEBSOCKET": "/websocket",
+                "NEXT_PUBLIC_HASURA_ADMIN_SECRET": "myadminsecretkey",
             },
             ports={
                 "ui": PortSpec(number=3000, transport_protocol="TCP", wait=None)
