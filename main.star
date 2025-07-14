@@ -2,7 +2,6 @@ input_parser = import_module("./src/package_io/input_parser.star")
 genesis_generator = import_module("./src/genesis-generator/genesis_generator.star")
 faucet = import_module("./src/faucet/faucet_launcher.star")
 network_launcher = import_module("./src/network_launcher/network_launcher.star")
-explorer = import_module("./src/explorer/explorer_launcher.star")
 bdjuno = import_module("./src/bdjuno/bdjuno_launcher.star")
 
 def run(plan, args):
@@ -53,8 +52,6 @@ def run(plan, args):
                     faucet_mnemonic = genesis_files[chain_name]["mnemonics"][-1]
                     transfer_amount = chain["faucet"]["transfer_amount"]
                     service_launchers[service](plan, chain_name, chain_id, faucet_mnemonic, transfer_amount)
-                elif service == "explorer":
-                    service_launchers[service](plan, chain_name, chain_id, node_info)
                 elif service == "bdjuno":
                     service_launchers[service](plan, chain_name)
 
