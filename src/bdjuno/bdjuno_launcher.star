@@ -7,10 +7,10 @@ def launch_bdjuno(plan, chain_name):
     )
 
     # Launch the bdjuno service
-    launch_bdjuno_service(plan, postgres_service, first_node, chain_name)
+    bdjuno_service, hasura_metadata_artifact = launch_bdjuno_service(plan, postgres_service, first_node, chain_name)
 
     # Launch hasura service
-    hasura_service = launch_hasura_service(plan, postgres_service, chain_name)
+    hasura_service = launch_hasura_service(plan, postgres_service, chain_name, hasura_metadata_artifact)
 
 
     big_dipper_service = launch_big_dipper(plan, chain_name)
@@ -83,6 +83,12 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
         name="{}-bdjuno-config".format(chain_name)
     )
 
+    # Upload Hasura metadata files to Kurtosis
+    hasura_metadata_artifact = plan.upload_files(
+        src="github.com/LZeroAnalytics/bdjuno/hasura",
+        name="{}-hasura-metadata".format(chain_name)
+    )
+
     # Retrieve the genesis file
     genesis_file_artifact = plan.get_files_artifact(
         name = "{}-genesis-render".format(chain_name)
@@ -106,7 +112,7 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
     bdjuno_service = plan.add_service(
         name = "{}-bdjuno-service".format(chain_name),
         config = ServiceConfig(
-            image = "tiljordan/bdjuno-thorchain:1.0.5",
+            image = "tiljordan/bdjuno-thorchain:1.0.6",
             ports = {
                 "bdjuno": PortSpec(number=26657, transport_protocol="TCP", wait = None),
                 "actions": PortSpec(number=3000, transport_protocol="TCP", wait = None)
@@ -120,16 +126,19 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
         )
     )
 
-    return bdjuno_service
+    return bdjuno_service, hasura_metadata_artifact
 
 
-def launch_hasura_service(plan, postgres_service, chain_name):
+def launch_hasura_service(plan, postgres_service, chain_name, hasura_metadata_artifact):
     hasura_service = plan.add_service(
         name = "{}-hasura".format(chain_name),
         config = ServiceConfig(
             image = "hasura/graphql-engine:v2.46.0",
             ports = {
                 "graphql": PortSpec(number=8080, transport_protocol="TCP")
+            },
+            files = {
+                "/hasura": hasura_metadata_artifact
             },
             env_vars = {
                 "HASURA_GRAPHQL_UNAUTHORIZED_ROLE": "anonymous",
