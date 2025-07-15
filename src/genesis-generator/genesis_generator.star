@@ -85,7 +85,6 @@ def _one_chain(plan, chain_cfg):
         node_accounts.append({
             "node_address":            addresses[i],
             "version":                 chain_cfg["app_version"],
-            "ip_address":              chain_cfg.get("validator_ips", ["127.0.0.1"])[i],
             "status":                  "Active",
             "bond":                    bond_amounts[i],
             "active_block_height":     "0",
