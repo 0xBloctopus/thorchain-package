@@ -156,6 +156,37 @@ def launch_hasura_service(plan, postgres_service, chain_name, hasura_metadata_ar
         )
     )
 
+    # Apply metadata automatically after Hasura starts using hasura CLI
+    plan.exec(
+        service_name="{}-hasura".format(chain_name),
+        recipe=ExecRecipe(
+            command=[
+                "/bin/sh", "-c",
+                """
+                sleep 30
+                
+                # Install hasura CLI
+                curl -L https://github.com/hasura/graphql-engine/releases/latest/download/cli-hasura-linux-amd64 -o /usr/local/bin/hasura
+                chmod +x /usr/local/bin/hasura
+                
+                cd /hasura
+                
+                # Apply metadata using hasura CLI
+                if [ -d metadata ]; then
+                    echo "Applying metadata from files using hasura CLI..."
+                    
+                    # Apply metadata
+                    hasura metadata apply --endpoint http://localhost:8080 --admin-secret $HASURA_GRAPHQL_ADMIN_SECRET --skip-update-check
+                    
+                    echo "Metadata application completed"
+                else
+                    echo "No metadata directory found"
+                fi
+                """
+            ]
+        )
+    )
+
     return hasura_service
 
 
