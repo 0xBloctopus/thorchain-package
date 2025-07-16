@@ -114,7 +114,7 @@ def start_node(plan, node_name, participant, binary, chain_id, thornode_args, co
     
     # Configure ports
     ports = {
-        "rpc": PortSpec(number=26657, transport_protocol="TCP", wait="2m"),
+        "rpc": PortSpec(number=26657, transport_protocol="TCP", wait=None),
         "p2p": PortSpec(number=26656, transport_protocol="TCP", wait=None),
         "grpc": PortSpec(number=9090, transport_protocol="TCP", wait=None),
         "api": PortSpec(number=1317, transport_protocol="TCP", wait=None),
