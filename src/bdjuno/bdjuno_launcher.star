@@ -133,7 +133,7 @@ def launch_hasura_service(plan, postgres_service, chain_name, hasura_metadata_ar
     hasura_service = plan.add_service(
         name = "{}-hasura".format(chain_name),
         config = ServiceConfig(
-            image = "hasura/graphql-engine:v2.46.0",
+            image = "tiljordan/graphql-engine:v2.46.0",
             ports = {
                 "graphql": PortSpec(number=8080, transport_protocol="TCP")
             },
@@ -163,30 +163,8 @@ def launch_hasura_service(plan, postgres_service, chain_name, hasura_metadata_ar
             command=[
                 "/bin/sh", "-c",
                 """
-                sleep 30
-                
-                # Install hasura CLI - detect architecture and download appropriate binary
-                ARCH=$(uname -m)
-                if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-                    curl -L https://github.com/hasura/graphql-engine/releases/latest/download/cli-hasura-linux-arm64 -o /usr/local/bin/hasura
-                else
-                    curl -L https://github.com/hasura/graphql-engine/releases/latest/download/cli-hasura-linux-amd64 -o /usr/local/bin/hasura
-                fi
-                chmod +x /usr/local/bin/hasura
-                
                 cd /hasura
-                
-                # Apply metadata using hasura CLI
-                if [ -d metadata ]; then
-                    echo "Applying metadata from files using hasura CLI..."
-                    
-                    # Apply metadata
-                    hasura metadata apply --endpoint http://localhost:8080 --admin-secret $HASURA_GRAPHQL_ADMIN_SECRET --skip-update-check
-                    
-                    echo "Metadata application completed"
-                else
-                    echo "No metadata directory found"
-                fi
+                hasura metadata apply --endpoint http://localhost:8080 --admin-secret $HASURA_GRAPHQL_ADMIN_SECRET --skip-update-check
                 """
             ]
         )
