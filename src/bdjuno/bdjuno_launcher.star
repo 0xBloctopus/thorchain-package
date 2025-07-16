@@ -165,8 +165,13 @@ def launch_hasura_service(plan, postgres_service, chain_name, hasura_metadata_ar
                 """
                 sleep 30
                 
-                # Install hasura CLI
-                curl -L https://github.com/hasura/graphql-engine/releases/latest/download/cli-hasura-linux-amd64 -o /usr/local/bin/hasura
+                # Install hasura CLI - detect architecture and download appropriate binary
+                ARCH=$(uname -m)
+                if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+                    curl -L https://github.com/hasura/graphql-engine/releases/latest/download/cli-hasura-linux-arm64 -o /usr/local/bin/hasura
+                else
+                    curl -L https://github.com/hasura/graphql-engine/releases/latest/download/cli-hasura-linux-amd64 -o /usr/local/bin/hasura
+                fi
                 chmod +x /usr/local/bin/hasura
                 
                 cd /hasura
