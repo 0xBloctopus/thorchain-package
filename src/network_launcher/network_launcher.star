@@ -5,7 +5,19 @@ def launch_network(plan, genesis_files, parsed_args):
         chain_id = chain["chain_id"]
         binary = "thornode"
         config_folder = "/root/.thornode/config"
-        thornode_args = "--fork.rpc=https://rpc.ninerealms.com --fork.chain-id=thorchain-mainnet-v1 --fork.cache-enabled=true --fork.cache-size=10000 --fork.timeout=60s --fork.gas-cost-per-fetch=1000"
+        
+        # Build thornode_args dynamically based on forking configuration
+        thornode_args = ""
+        if chain.get("forking", {}).get("enabled", False):
+            forking_config = chain["forking"]
+            thornode_args = "--fork.rpc={} --fork.chain-id={} --fork.cache-enabled={} --fork.cache-size={} --fork.timeout={} --fork.gas-cost-per-fetch={}".format(
+                forking_config.get("rpc", "https://rpc.ninerealms.com"),
+                forking_config.get("chain_id", "thorchain-mainnet-v1"),
+                str(forking_config.get("cache_enabled", True)).lower(),
+                forking_config.get("cache_size", 10000),
+                forking_config.get("timeout", "60s"),
+                forking_config.get("gas_cost_per_fetch", 1000)
+            )
         
         genesis_file = genesis_files[chain_name]["genesis_file"]
         mnemonics = genesis_files[chain_name]["mnemonics"]

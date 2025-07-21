@@ -1,0 +1,16 @@
+chains:
+  - name: thorchain
+    type: thorchain
+    participants:
+      - image: "tiljordan/thornode:forking"
+        account_balance: 1000000000000000
+        bond_amount: "300000000000000"
+        count: 1
+    forking:
+      enabled: true
+      rpc: "https://rpc.ninerealms.com"
+      chain_id: "thorchain-mainnet-v1"
+      cache_enabled: true
+      cache_size: 10000
+      timeout: "60s"
+      gas_cost_per_fetch: 1000

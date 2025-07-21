@@ -55,6 +55,11 @@ def apply_chain_defaults(chain, defaults):
     if "prefunded_accounts" not in chain:
         chain["prefunded_accounts"] = {}
 
+    # Apply defaults to forking
+    chain["forking"] = chain.get("forking", {})
+    for key, value in defaults["forking"].items():
+        chain["forking"][key] = chain["forking"].get(key, value)
+
     return chain
 
 def validate_input_args(input_args):
