@@ -11,8 +11,8 @@ echo "Starting Thorchain node: $NODE_NAME"
 # Import the validator key
 printf '%s\n\n\n\n' "$MNEMONIC" | $BINARY keys add validator --recover --keyring-backend test
 
-# Initialize the node with the mnemonic
-echo "$MNEMONIC" | $BINARY init "$NODE_NAME" --recover $THORNODE_ARGS
+# Initialize the node with the mnemonic (without forking args)
+echo "$MNEMONIC" | $BINARY init "$NODE_NAME" --recover
 
 # Copy the genesis file again after init (in case init overwrote it)
 mkdir -p "$CONFIG_FOLDER"
@@ -51,8 +51,8 @@ echo "Node configuration completed"
 # Start the node with seed options if provided
 if [ -n "$SEED_OPTIONS" ]; then
     echo "Starting node with seeds: $SEED_OPTIONS"
-    #exec $BINARY start $SEED_OPTIONS $THORNODE_ARGS
+    exec $BINARY start $SEED_OPTIONS $THORNODE_ARGS
 else
     echo "Starting seed node (no seeds configured)"
-    exec printf 'validator0\nTestPassword!\n' | $BINARY start $THORNODE_ARGS
+    exec $BINARY start $THORNODE_ARGS
 fi
