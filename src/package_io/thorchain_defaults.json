@@ -91,6 +91,7 @@
     "enabled": false,
     "rpc": "https://rpc.ninerealms.com",
     "chain_id": "thorchain-mainnet-v1",
+    "height": 0,
     "cache_enabled": true,
     "cache_size": 10000,
     "timeout": "60s",

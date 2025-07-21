@@ -10,6 +10,7 @@ chains:
       enabled: true
       rpc: "https://rpc.ninerealms.com"
       chain_id: "thorchain-mainnet-v1"
+      height: 0  # 0 = latest, or specify specific block height like 22057352
       cache_enabled: true
       cache_size: 10000
       timeout: "60s"
