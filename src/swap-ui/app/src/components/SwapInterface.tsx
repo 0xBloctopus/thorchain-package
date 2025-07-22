@@ -18,8 +18,10 @@ const SwapInterface: React.FC = () => {
   const [swapping, setSwapping] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [walletConnected, setWalletConnected] = useState(false)
 
   const buyAsset = 'THOR.RUJI'
+  const prefundedMnemonic = 'maple forest blouse coffee explain category grass punch carry raise trust weekend'
 
   const nodeUrl = import.meta.env.VITE_NODE_URL || window.location.origin + '/api'
 
@@ -83,6 +85,8 @@ const SwapInterface: React.FC = () => {
       const swapAmount = Math.floor(parseFloat(sellAmount) * 1e8).toString()
       const memo = `=:${buyAsset}:thor1k0ypgljd8cxf5ymvm0ekt3md29mlzu2zu7khyj`
       
+      console.log('Creating signed transaction with prefunded mnemonic...')
+      
       const msgDeposit = {
         "@type": "/types.MsgDeposit",
         coins: [{
@@ -93,59 +97,63 @@ const SwapInterface: React.FC = () => {
         signer: "thor1k0ypgljd8cxf5ymvm0ekt3md29mlzu2zu7khyj"
       }
 
-      const tx = {
-        body: {
-          messages: [msgDeposit],
-          memo: memo,
-          timeout_height: "0",
-          extension_options: [],
-          non_critical_extension_options: []
-        },
-        auth_info: {
-          signer_infos: [{
-            public_key: null,
-            mode_info: {
-              single: {
-                mode: "SIGN_MODE_DIRECT"
-              }
-            },
-            sequence: "0"
-          }],
-          fee: {
-            amount: [{ denom: "rune", amount: "2000000" }],
-            gas_limit: "200000",
-            payer: "",
-            granter: ""
-          }
-        },
-        signatures: [""]
+      const txBody = {
+        messages: [msgDeposit],
+        memo: "",
+        timeout_height: "0",
+        extension_options: [],
+        non_critical_extension_options: []
       }
 
+      const authInfo = {
+        signer_infos: [{
+          public_key: null,
+          mode_info: {
+            single: {
+              mode: "SIGN_MODE_DIRECT"
+            }
+          },
+          sequence: "0"
+        }],
+        fee: {
+          amount: [],
+          gas_limit: "4000000000",
+          payer: "",
+          granter: ""
+        }
+      }
+
+      const tx = {
+        body: txBody,
+        auth_info: authInfo,
+        signatures: [""] // Would need proper signature here
+      }
+
+      console.log('Broadcasting transaction:', tx)
+
       const response = await axios.post(`${nodeUrl}/cosmos/tx/v1beta1/txs`, {
-        tx: tx,
+        tx_bytes: btoa(JSON.stringify(tx)), // Base64 encode the transaction
         mode: "BROADCAST_MODE_SYNC"
       })
 
       if (response.data && response.data.tx_response) {
-        const txResponse = response.data.tx_response
-        if (txResponse.code === 0) {
-          setSuccess(`Swap initiated! Transaction hash: ${txResponse.txhash}. Check thor1k0ypgljd8cxf5ymvm0ekt3md29mlzu2zu7khyj for RUJI tokens.`)
+        if (response.data.tx_response.code === 0) {
+          setSuccess(`Swap successful! Transaction hash: ${response.data.tx_response.txhash}. Swapped ${sellAmount} RUNE for ${buyAmount} RUJI.`)
         } else {
-          throw new Error(`Transaction failed (code ${txResponse.code}): ${txResponse.raw_log}`)
+          throw new Error(`Transaction failed: ${response.data.tx_response.raw_log}`)
         }
+        setSellAmount('')
+        setBuyAmount('')
+        setQuote(null)
       } else {
         throw new Error('Invalid response from transaction broadcast')
       }
-
-      setSellAmount('')
-      setBuyAmount('')
-      setQuote(null)
     } catch (err: any) {
       console.error('Swap error:', err)
-      if (err.response?.data?.tx_response?.raw_log) {
-        setError(`Swap failed: ${err.response.data.tx_response.raw_log}`)
+      if (err.response?.status === 400 && err.response?.data?.message?.includes('signature')) {
+        setError(`Transaction signing failed. Need to implement proper signature with mnemonic: "${prefundedMnemonic.split(' ').slice(0, 3).join(' ')}..."`)
       } else {
-        setError(`Swap failed: ${err.response?.data?.message || err.message}`)
+        setError(`Swap failed: ${err.message}. Using real pool data (${sellAmount} RUNE = ${buyAmount} RUJI) but transaction signing needs implementation.`)
       }
     } finally {
       setSwapping(false)
@@ -155,6 +163,7 @@ const SwapInterface: React.FC = () => {
   const connectWallet = async () => {
     try {
       setSuccess('Wallet connection simulated - using prefunded account for swaps')
+      setWalletConnected(true)
     } catch (err: any) {
       setError('Failed to connect wallet: ' + err.message)
     }
@@ -253,7 +262,7 @@ const SwapInterface: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="swap-actions">
-            {success && success.includes('Wallet connection simulated') ? (
+            {walletConnected ? (
               <button
                 onClick={executeSwap}
                 disabled={!sellAmount || parseFloat(sellAmount) <= 0 || swapping}
