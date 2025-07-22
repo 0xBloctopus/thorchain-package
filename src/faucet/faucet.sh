@@ -121,7 +121,7 @@ while true; do
 
     case "$method $path" in
         OPTIONS\ *)
-            status='HTTP/1.1 204 No Content'; body='{}' ;;
+            status='HTTP/1.1 204 No Content'; body='' ;;
         GET\ /health)
             status='HTTP/1.1 200 OK';        body=$(handle_health_check) ;;
         POST\ /fund/*)
@@ -137,9 +137,11 @@ while true; do
     {
         printf '%s\r\n' "$status"
         printf 'Content-Type: application/json\r\n'
+        # CORS headers
         printf 'Access-Control-Allow-Origin: *\r\n'
         printf 'Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n'
-        printf 'Access-Control-Allow-Headers: Content-Type\r\n'
+        printf 'Access-Control-Allow-Headers: *\r\n'
+        printf 'Access-Control-Max-Age: 86400\r\n'
         printf 'Content-Length: %s\r\n' "${#body}"
         printf '\r\n%s' "$body"
     } >&"${NC[1]}"
