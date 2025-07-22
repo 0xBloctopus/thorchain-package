@@ -87,6 +87,10 @@ const SwapInterface: React.FC = () => {
       
       console.log('Creating signed transaction with prefunded mnemonic...')
       
+      if (!prefundedMnemonic) {
+        throw new Error('Prefunded mnemonic not configured. Please set VITE_PREFUNDED_MNEMONIC environment variable.')
+      }
+      
       const msgDeposit = {
         "@type": "/types.MsgDeposit",
         coins: [{
