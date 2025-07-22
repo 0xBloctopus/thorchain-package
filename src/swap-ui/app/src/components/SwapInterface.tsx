@@ -15,7 +15,6 @@ const SwapInterface: React.FC = () => {
   const [sellAmount, setSellAmount] = useState('')
   const [buyAmount, setBuyAmount] = useState('')
   const [quote, setQuote] = useState<SwapQuote | null>(null)
-  const [loading, setLoading] = useState(false)
   const [swapping, setSwapping] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -23,7 +22,6 @@ const SwapInterface: React.FC = () => {
   const buyAsset = 'THOR.RUJI'
 
   const nodeUrl = import.meta.env.VITE_NODE_URL || window.location.origin + '/api'
-  const prefundedMnemonic = import.meta.env.VITE_PREFUNDED_MNEMONIC || ''
 
   useEffect(() => {
     if (sellAmount && parseFloat(sellAmount) > 0) {
@@ -37,7 +35,6 @@ const SwapInterface: React.FC = () => {
   const getQuote = async () => {
     if (!sellAmount || parseFloat(sellAmount) <= 0) return
 
-    setLoading(true)
     setError('')
 
     try {
@@ -72,12 +69,11 @@ const SwapInterface: React.FC = () => {
       setBuyAmount('')
       setQuote(null)
     } finally {
-      setLoading(false)
     }
   }
 
   const executeSwap = async () => {
-    if (!quote || !sellAmount) return
+    if (!sellAmount || parseFloat(sellAmount) <= 0) return
 
     setSwapping(true)
     setError('')
@@ -87,29 +83,62 @@ const SwapInterface: React.FC = () => {
       const swapAmount = Math.floor(parseFloat(sellAmount) * 1e8).toString()
       const memo = `=:${buyAsset}:thor1k0ypgljd8cxf5ymvm0ekt3md29mlzu2zu7khyj`
       
-      const response = await axios.post(`${nodeUrl}/thorchain/deposit`, {
+      const msgDeposit = {
+        "@type": "/types.MsgDeposit",
         coins: [{
           asset: 'THOR.RUNE',
           amount: swapAmount
         }],
         memo: memo,
         signer: 'thor1k0ypgljd8cxf5ymvm0ekt3md29mlzu2zu7khyj'
+      }
+
+      const txBody = {
+        messages: [msgDeposit],
+        memo: memo,
+        timeout_height: "0",
+        extension_options: [],
+        non_critical_extension_options: []
+      }
+
+      const authInfo = {
+        signer_infos: [],
+        fee: {
+          amount: [{ denom: "rune", amount: "2000000" }],
+          gas_limit: "200000",
+          payer: "",
+          granter: ""
+        }
+      }
+
+      const txRaw = {
+        body_bytes: btoa(JSON.stringify(txBody)),
+        auth_info_bytes: btoa(JSON.stringify(authInfo)),
+        signatures: []
+      }
+
+      const response = await axios.post(`${nodeUrl}/cosmos/tx/v1beta1/txs`, {
+        tx_bytes: btoa(JSON.stringify(txRaw)),
+        mode: "BROADCAST_MODE_SYNC"
       })
 
-      if (response.data && response.data.hash) {
-        setSuccess(`Swap initiated! Transaction hash: ${response.data.hash}. Check thor1k0ypgljd8cxf5ymvm0ekt3md29mlzu2zu7khyj for RUJI tokens.`)
+      if (response.data && response.data.tx_response) {
+        const txResponse = response.data.tx_response
+        if (txResponse.code === 0) {
+          setSuccess(`Swap initiated! Transaction hash: ${txResponse.txhash}. Check thor1k0ypgljd8cxf5ymvm0ekt3md29mlzu2zu7khyj for RUJI tokens.`)
+        } else {
+          throw new Error(`Transaction failed: ${txResponse.raw_log}`)
+        }
       } else {
-        setSuccess(`Swap simulated successfully! Swapped ${sellAmount} RUNE for ${buyAmount} RUJI. Check thor1k0ypgljd8cxf5ymvm0ekt3md29mlzu2zu7khyj for RUJI tokens.`)
+        throw new Error('Invalid response from transaction broadcast')
       }
 
       setSellAmount('')
       setBuyAmount('')
       setQuote(null)
     } catch (err: any) {
-      setSuccess(`Swap simulated successfully! Swapped ${sellAmount} RUNE for ${buyAmount} RUJI. Check thor1k0ypgljd8cxf5ymvm0ekt3md29mlzu2zu7khyj for RUJI tokens.`)
-      setSellAmount('')
-      setBuyAmount('')
-      setQuote(null)
+      console.error('Swap error:', err)
+      setError(`Swap failed: ${err.response?.data?.message || err.message}`)
     } finally {
       setSwapping(false)
     }
@@ -176,7 +205,7 @@ const SwapInterface: React.FC = () => {
               <input
                 type="number"
                 value={buyAmount}
-                readOnly
+                onChange={(e) => setBuyAmount(e.target.value)}
                 placeholder="0"
                 className="swap-input"
               />
@@ -216,13 +245,13 @@ const SwapInterface: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="swap-actions">
-            {prefundedMnemonic ? (
+            {success && success.includes('Wallet connection simulated') ? (
               <button
                 onClick={executeSwap}
-                disabled={!quote || swapping || loading}
+                disabled={!sellAmount || parseFloat(sellAmount) <= 0 || swapping}
                 className="swap-button primary"
               >
-                {swapping ? 'Swapping...' : loading ? 'Getting Quote...' : 'Swap'}
+                {swapping ? 'Swapping...' : 'Swap'}
               </button>
             ) : (
               <button
