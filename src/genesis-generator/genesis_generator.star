@@ -1,4 +1,4 @@
-BOND_MODULE_ADDR = "tthor17gw75axcnr8747pkanye45pnrwk7p9c3uhzgff"
+BOND_MODULE_ADDR = "thor17gw75axcnr8747pkanye45pnrwk7p9c3uhzgff"
 
 def generate_genesis_files(plan, parsed_args):
     out = {}
