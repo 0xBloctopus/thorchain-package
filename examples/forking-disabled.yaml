@@ -1,0 +1,10 @@
+chains:
+  - name: thorchain
+    type: thorchain
+    participants:
+      - image: "registry.gitlab.com/thorchain/thornode:mainnet"
+        account_balance: 1000000000000000
+        bond_amount: "300000000000000"
+        count: 1
+    forking:
+      enabled: false
