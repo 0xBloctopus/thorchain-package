@@ -21,7 +21,7 @@ const SwapInterface: React.FC = () => {
   const [walletConnected, setWalletConnected] = useState(false)
 
   const buyAsset = 'THOR.RUJI'
-  const prefundedMnemonic = 'maple forest blouse coffee explain category grass punch carry raise trust weekend'
+  const prefundedMnemonic = import.meta.env.VITE_PREFUNDED_MNEMONIC || ''
 
   const nodeUrl = import.meta.env.VITE_NODE_URL || window.location.origin + '/api'
 
@@ -151,7 +151,7 @@ const SwapInterface: React.FC = () => {
     } catch (err: any) {
       console.error('Swap error:', err)
       if (err.response?.status === 400 && err.response?.data?.message?.includes('signature')) {
-        setError(`Transaction signing failed. Need to implement proper signature with mnemonic: "${prefundedMnemonic.split(' ').slice(0, 3).join(' ')}..."`)
+        setError(`Transaction signing failed. Need to implement proper signature with prefunded mnemonic.`)
       } else {
         setError(`Swap failed: ${err.message}. Using real pool data (${sellAmount} RUNE = ${buyAmount} RUJI) but transaction signing needs implementation.`)
       }
