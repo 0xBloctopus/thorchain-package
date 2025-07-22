@@ -1,0 +1,16 @@
+.App {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background: rgba(15, 20, 25, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.container {
+  max-width: 1200px;
+}

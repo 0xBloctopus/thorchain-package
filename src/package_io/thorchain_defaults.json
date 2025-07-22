@@ -94,6 +94,9 @@
     "cache_enabled": true,
     "cache_size": 10000,
     "timeout": "60s",
-    "gas_cost_per_fetch": 1000
+    "gas_cost_per_fetch": 1000,
+    "swap_ui": {
+      "enabled": false
+    }
   }
 }
