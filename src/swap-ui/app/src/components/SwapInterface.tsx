@@ -86,39 +86,43 @@ const SwapInterface: React.FC = () => {
       const msgDeposit = {
         "@type": "/types.MsgDeposit",
         coins: [{
-          asset: 'THOR.RUNE',
+          asset: "THOR.RUNE",
           amount: swapAmount
         }],
         memo: memo,
-        signer: 'thor1k0ypgljd8cxf5ymvm0ekt3md29mlzu2zu7khyj'
+        signer: "thor1k0ypgljd8cxf5ymvm0ekt3md29mlzu2zu7khyj"
       }
 
-      const txBody = {
-        messages: [msgDeposit],
-        memo: memo,
-        timeout_height: "0",
-        extension_options: [],
-        non_critical_extension_options: []
-      }
-
-      const authInfo = {
-        signer_infos: [],
-        fee: {
-          amount: [{ denom: "rune", amount: "2000000" }],
-          gas_limit: "200000",
-          payer: "",
-          granter: ""
-        }
-      }
-
-      const txRaw = {
-        body_bytes: btoa(JSON.stringify(txBody)),
-        auth_info_bytes: btoa(JSON.stringify(authInfo)),
-        signatures: []
+      const tx = {
+        body: {
+          messages: [msgDeposit],
+          memo: memo,
+          timeout_height: "0",
+          extension_options: [],
+          non_critical_extension_options: []
+        },
+        auth_info: {
+          signer_infos: [{
+            public_key: null,
+            mode_info: {
+              single: {
+                mode: "SIGN_MODE_DIRECT"
+              }
+            },
+            sequence: "0"
+          }],
+          fee: {
+            amount: [{ denom: "rune", amount: "2000000" }],
+            gas_limit: "200000",
+            payer: "",
+            granter: ""
+          }
+        },
+        signatures: [""]
       }
 
       const response = await axios.post(`${nodeUrl}/cosmos/tx/v1beta1/txs`, {
-        tx_bytes: btoa(JSON.stringify(txRaw)),
+        tx: tx,
         mode: "BROADCAST_MODE_SYNC"
       })
 
@@ -127,7 +131,7 @@ const SwapInterface: React.FC = () => {
         if (txResponse.code === 0) {
           setSuccess(`Swap initiated! Transaction hash: ${txResponse.txhash}. Check thor1k0ypgljd8cxf5ymvm0ekt3md29mlzu2zu7khyj for RUJI tokens.`)
         } else {
-          throw new Error(`Transaction failed: ${txResponse.raw_log}`)
+          throw new Error(`Transaction failed (code ${txResponse.code}): ${txResponse.raw_log}`)
         }
       } else {
         throw new Error('Invalid response from transaction broadcast')
@@ -138,7 +142,11 @@ const SwapInterface: React.FC = () => {
       setQuote(null)
     } catch (err: any) {
       console.error('Swap error:', err)
-      setError(`Swap failed: ${err.response?.data?.message || err.message}`)
+      if (err.response?.data?.tx_response?.raw_log) {
+        setError(`Swap failed: ${err.response.data.tx_response.raw_log}`)
+      } else {
+        setError(`Swap failed: ${err.response?.data?.message || err.message}`)
+      }
     } finally {
       setSwapping(false)
     }
