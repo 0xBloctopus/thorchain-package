@@ -1,8 +1,4 @@
 def launch_swap_ui(plan, chain_name, chain_id, forking_config, prefunded_mnemonics):
-    # Check if swap UI is enabled in forking config
-    if not forking_config.get("swap_ui", {}).get("enabled", False):
-        plan.print("Swap UI is disabled in forking config, skipping launch")
-        return None
     
     # Get first node
     first_node = plan.get_service(
@@ -43,7 +39,7 @@ def launch_swap_ui(plan, chain_name, chain_id, forking_config, prefunded_mnemoni
     swap_ui_service = plan.add_service(
         name="{}-swap-ui".format(chain_name),
         config = ServiceConfig(
-            image = "swap-ui:latest",
+            image = "tiljordan/thorchain-swap-ui:1.0.0",
             ports = {
                 "http": PortSpec(number=80, transport_protocol="TCP", wait=None)
             },
