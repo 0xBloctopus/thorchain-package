@@ -51,8 +51,8 @@ echo "Node configuration completed"
 # Start the node with seed options if provided
 if [ -n "$SEED_OPTIONS" ]; then
     echo "Starting node with seeds: $SEED_OPTIONS"
-    exec $BINARY start $SEED_OPTIONS $THORNODE_ARGS
+    exec printf 'validator0\nTestPassword!\n' | $BINARY start $SEED_OPTIONS $THORNODE_ARGS
 else
     echo "Starting seed node (no seeds configured)"
-    exec $BINARY start $THORNODE_ARGS
+    exec printf 'validator0\nTestPassword!\n' | $BINARY start $THORNODE_ARGS
 fi
