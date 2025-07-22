@@ -80,7 +80,7 @@ handle_funding_request() {
     # ---- build HTTP response ----------------------------------------------
     if jq -e '.code? // 0' <<<"$bcast" | grep -q '^0$'; then
         local hash; hash=$(jq -r '.txhash' <<<"$bcast")
-        printf '{"status":"success","txhash":"%s","message":"Funded %s with %s"}' \
+        printf '{"status":"success","txHash":"%s","message":"Funded %s with %s"}' \
                "$hash" "$address" "$TRANSFER_AMOUNT"
     else
         # escape newlines↴
