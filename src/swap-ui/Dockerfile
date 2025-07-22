@@ -19,6 +19,9 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
+# Copy mime.types file
+COPY templates/mime.types /etc/nginx/mime.types
+
 # Copy custom nginx configuration
 COPY templates/nginx.conf /etc/nginx/nginx.conf
 
