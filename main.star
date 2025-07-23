@@ -3,6 +3,7 @@ genesis_generator = import_module("./src/genesis-generator/genesis_generator.sta
 faucet = import_module("./src/faucet/faucet_launcher.star")
 network_launcher = import_module("./src/network_launcher/network_launcher.star")
 bdjuno = import_module("./src/bdjuno/bdjuno_launcher.star")
+swap_ui = import_module("./src/swap-ui/swap_ui_launcher.star")
 
 def run(plan, args):
     parsed_args = input_parser.input_parser(args)
@@ -13,7 +14,8 @@ def run(plan, args):
 
     service_launchers = {
         "faucet": faucet.launch_faucet,
-        "bdjuno": bdjuno.launch_bdjuno
+        "bdjuno": bdjuno.launch_bdjuno,
+        "swap-ui": swap_ui.launch_swap_ui
     }
 
     # Launch additional services for each chain
@@ -54,5 +56,9 @@ def run(plan, args):
                     service_launchers[service](plan, chain_name, chain_id, faucet_mnemonic, transfer_amount)
                 elif service == "bdjuno":
                     service_launchers[service](plan, chain_name)
+                elif service == "swap-ui":
+                    forking_config = chain.get("forking", {})
+                    prefunded_mnemonics = genesis_files[chain_name]["prefunded_mnemonics"]
+                    service_launchers[service](plan, chain_name, chain_id, forking_config, prefunded_mnemonics)
 
     plan.print(genesis_files)
