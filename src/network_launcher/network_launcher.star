@@ -10,8 +10,9 @@ def launch_network(plan, genesis_files, parsed_args):
         thornode_args = ""
         if chain.get("forking", {}).get("enabled", False):
             forking_config = chain["forking"]
-            thornode_args = "--fork.rpc={} --fork.chain-id={} --fork.height={} --fork.cache-enabled={} --fork.cache-size={} --fork.timeout={} --fork.gas-cost-per-fetch={}".format(
+            thornode_args = "--fork.rpc={} --fork.api={} --fork.chain-id={} --fork.height={} --fork.cache-enabled={} --fork.cache-size={} --fork.timeout={} --fork.gas-cost-per-fetch={}".format(
                 forking_config.get("rpc", "https://rpc.ninerealms.com"),
+                forking_config.get("api", "https://thornode.ninerealms.com"),
                 forking_config.get("chain_id", "thorchain-mainnet-v1"),
                 forking_config.get("height", 0),
                 str(forking_config.get("cache_enabled", True)).lower(),
