@@ -21,13 +21,6 @@ echo "Transfer Amount:     $TRANSFER_AMOUNT"
 echo "API Port:            $PORT"
 echo "Monitoring Port:     $MONITORING_PORT"
 
-echo "Installing packages (bash image is slim)…"
-apt-get update -qq
-DEBIAN_FRONTEND=noninteractive \
-apt-get install -y --no-install-recommends \
-        netcat-openbsd util-linux jq > /dev/null
-rm -rf /var/lib/apt/lists/*
-
 echo "Importing faucet key…"
 thornode keys delete faucet --keyring-backend test --yes 2>/dev/null || true
 < /tmp/mnemonic/mnemonic.txt thornode keys add faucet --recover --keyring-backend test \

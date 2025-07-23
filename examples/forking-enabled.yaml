@@ -2,15 +2,15 @@ chains:
   - name: thorchain
     type: thorchain
     participants:
-      - image: "tiljordan/thornode:forking"
+      - image: "tiljordan/thornode-forking:1.0.5"
         account_balance: 1000000000000000
         bond_amount: "300000000000000"
         count: 1
     forking:
       enabled: true
       rpc: "https://rpc.ninerealms.com"
-      chain_id: "thorchain-mainnet-v1"
-      height: 0  # 0 = latest, or specify specific block height like 22057352
+      chain_id: "thorchain-1"
+      height: 22071722
       cache_enabled: true
       cache_size: 10000
       timeout: "60s"
