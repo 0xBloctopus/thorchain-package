@@ -73,7 +73,7 @@ handle_funding_request() {
     # ---- build HTTP response ----------------------------------------------
     if jq -e '.code? // 0' <<<"$bcast" | grep -q '^0$'; then
         local hash; hash=$(jq -r '.txhash' <<<"$bcast")
-        printf '{"status":"success","txhash":"%s","message":"Funded %s with %s"}' \
+        printf '{"status":"success","txHash":"%s","message":"Funded %s with %s"}' \
                "$hash" "$address" "$TRANSFER_AMOUNT"
     else
         # escape newlines↴
@@ -104,17 +104,30 @@ while true; do
     IFS= read -r request_line <&"${NC[0]}" || { exec {NC[0]}>&- {NC[1]}>&-; continue; }
     IFS= read -r _host_line   <&"${NC[0]}"
 
+    # Parse headers & capture Content-Length (so we can drain the body)
+    content_length=0
+    origin_header=""
     while IFS= read -r hdr <&"${NC[0]}"; do
-        hdr=${hdr%$'\r'}; [[ -z $hdr ]] && break
+        hdr=${hdr%$'\r'}
+        [[ -z $hdr ]] && break
+        case "$hdr" in
+            Content-Length:*) content_length=${hdr#*: }; content_length=${content_length//[[:space:]]/} ;;
+            Origin:*)         origin_header=${hdr#*: } ;;
+        esac
     done
 
     method=${request_line%% *}
     path=${request_line#* }; path=${path%% *}
     echo "[$(date +%T)] $method $path" >&2
 
+    # Drain request body if present (we don't actually use it)
+    if [[ "$content_length" -gt 0 ]]; then
+        dd bs=1 count="$content_length" of=/dev/null <&"${NC[0]}" 2>/dev/null
+    fi
+
     case "$method $path" in
         OPTIONS\ *)
-            status='HTTP/1.1 204 No Content'; body='{}' ;;
+            status='HTTP/1.1 204 No Content'; body='' ;;
         GET\ /health)
             status='HTTP/1.1 200 OK';        body=$(handle_health_check) ;;
         POST\ /fund/*)
@@ -130,9 +143,12 @@ while true; do
     {
         printf '%s\r\n' "$status"
         printf 'Content-Type: application/json\r\n'
+        # CORS headers
         printf 'Access-Control-Allow-Origin: *\r\n'
         printf 'Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n'
-        printf 'Access-Control-Allow-Headers: Content-Type\r\n'
+        printf 'Access-Control-Allow-Headers: *\r\n'
+        printf 'Access-Control-Max-Age: 86400\r\n'
+        printf 'Connection: close\r\n'
         printf 'Content-Length: %s\r\n' "${#body}"
         printf '\r\n%s' "$body"
     } >&"${NC[1]}"
