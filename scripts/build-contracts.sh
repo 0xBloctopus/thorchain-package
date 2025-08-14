@@ -28,8 +28,10 @@ optimize_wasm() {
     local wasm_file="$BUILD_DIR/${contract_name}.wasm"
     
     if command -v wasm-opt &> /dev/null; then
-        echo "Optimizing $contract_name with wasm-opt..."
-        wasm-opt -Oz --enable-sign-ext "$wasm_file" -o "$wasm_file"
+        echo "Optimizing $contract_name with wasm-opt (removing bulk memory)..."
+        wasm-opt -Oz --enable-sign-ext --disable-bulk-memory "$wasm_file" -o "$wasm_file" || {
+            echo "Warning: wasm-opt failed, using unoptimized WASM"
+        }
     else
         echo "Warning: wasm-opt not found. Install binaryen for optimization."
     fi
@@ -49,6 +51,7 @@ build_contract() {
     echo "Building contract: $contract_name"
     cd "$contract_dir"
     
+    RUSTFLAGS='-C link-arg=-s -C target-feature=-bulk-memory' \
     cargo build --release --target wasm32-unknown-unknown
     
     local wasm_file="target/wasm32-unknown-unknown/release/${contract_name//-/_}.wasm"
