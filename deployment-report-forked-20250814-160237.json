@@ -1,0 +1,29 @@
+{
+  "deployment_info": {
+    "network_type": "forked",
+    "thorchain_rpc": "http://127.0.0.1:32786",
+    "thorchain_api": "http://127.0.0.1:32783",
+    "chain_id": "thorchain",
+    "timestamp": "2025-08-14T16:02:37Z"
+  },
+  "contracts": [
+    {
+      "name": "counter",
+      "size_bytes": 186103,
+      "checksum": "8be5033b36ee73603696ef265be2f7d8029068545a711ffa04fe87b0781dd914",
+      "status": "simulated"
+    }
+,
+    {
+      "name": "cw20-token",
+      "size_bytes": 258513,
+      "checksum": "88ac7b01a1c7620ee87560d33b98b02629cf77fc7b2205b060cd96008c104aae",
+      "status": "simulated"
+    }
+  ],
+  "network_status": {
+    "rpc_accessible": true,
+    "api_accessible": true,
+    "wasm_enabled": true
+  }
+}
