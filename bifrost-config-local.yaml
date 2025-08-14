@@ -1,0 +1,45 @@
+thorchain:
+  chain_id: thorchain
+  chain_host: 127.0.0.1:32772
+  chain_rpc: http://127.0.0.1:32772
+  chain_home_folder: /tmp/thorchain
+  sign_scheme: secp256k1
+  cosmos_grpc_host: 127.0.0.1:32769
+  cosmos_grpc_tls: false
+
+chains:
+  BTC:
+    chain_id: bitcoin
+    rpc_host: bitcoin-testnet:18332
+    username: thorchain
+    password: password
+    disabled: false
+    parallel_mempool_scan: 1
+    
+  ETH:
+    chain_id: 1
+    rpc_host: ethereum-testnet:8545
+    cosmos_grpc_host: 127.0.0.1:32769
+    cosmos_grpc_tls: false
+    disabled: false
+    block_scanner:
+      start_block_height: 0
+      
+  GAIA:
+    chain_id: cosmoshub-4
+    rpc_host: cosmos-testnet:26657
+    cosmos_grpc_host: 127.0.0.1:32769
+    cosmos_grpc_tls: false
+    disabled: true
+
+tss:
+  bootstrap_peers: []
+  external_ip: ""
+  port: 5040
+  info_address: :6040
+  
+metrics:
+  enabled: true
+  listen_port: 9000
+  
+log_level: info
