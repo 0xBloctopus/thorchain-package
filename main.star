@@ -4,6 +4,7 @@ faucet = import_module("./src/faucet/faucet_launcher.star")
 network_launcher = import_module("./src/network_launcher/network_launcher.star")
 bdjuno = import_module("./src/bdjuno/bdjuno_launcher.star")
 swap_ui = import_module("./src/swap-ui/swap_ui_launcher.star")
+mimir_configurator = import_module("./src/mimir-config/mimir_configurator.star")
 
 def run(plan, args):
     parsed_args = input_parser.input_parser(args)
@@ -46,6 +47,9 @@ def run(plan, args):
             timeout = "1m",
             description = "Waiting for first block for chain " + chain_name
         )
+
+        # Configure MIMIR values after network is running
+        mimir_configurator.configure_mimir_values(plan, chain, node_info)
 
         for service in service_launchers:
             if service in additional_services:
