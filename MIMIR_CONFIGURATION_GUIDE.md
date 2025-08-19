@@ -4,18 +4,19 @@
 
 THORChain uses a custom mimir system for runtime governance that can override genesis permissions. This guide explains how to configure mimir values for contract deployment on forked networks.
 
-## The Problem
+## The Problem: "Unauthorized" Errors on Forked Networks
 
-When deploying a forked THORChain network, users may encounter "unauthorized" errors during contract deployment:
+When deploying contracts on forked THORChain networks, developers encounter:
 
 ```
 Error: Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 0: unauthorized
 ```
 
-This occurs because:
-1. Genesis permissions are correctly set to "Everybody" for WASM contract deployment
-2. Forked networks inherit mainnet mimir values where `WASMPERMISSIONLESS=0`
-3. Mimir values override genesis permissions at runtime
+**Root Cause**: 
+- Forked networks inherit mainnet mimir configuration, where `WASMPERMISSIONLESS=0` (disabled)
+- THORChain's mimir system overrides genesis WASM permissions at runtime
+- Genesis template sets `code_upload_access: "Everybody"` but mimir takes precedence
+- THORChain uses a whitelisted contract system - `WASMPERMISSIONLESS=1` enables deployment outside the whitelist
 
 ## The Solution
 
@@ -95,6 +96,17 @@ The demo setup automatically configures mimir values:
 - THORChain's custom governance system for runtime configuration
 - Overrides genesis parameters without requiring chain upgrades
 - Values are stored in the blockchain state and persist across restarts
+
+### Understanding THORChain Mimir System
+
+THORChain uses a **mimir system** for runtime configuration that overrides genesis settings. Key points:
+
+- **Runtime Override**: Mimir values take precedence over genesis module parameters at runtime
+- **Dynamic Configuration**: Can be changed without network restarts or upgrades
+- **Validator Control**: Mimir values are set using validator keys with consensus
+- **Contract Permissions**: `WASMPERMISSIONLESS` specifically controls CosmWasm deployment permissions outside the whitelist system
+- **THORChain-Specific**: Different from standard Cosmos chains - uses whitelisted contract system with mimir-controlled permissionless bypass
+- **Forked Network Issue**: Forked networks inherit mainnet mimir values, which typically have `WASMPERMISSIONLESS=0`
 
 ### Key Mimir Values for Contract Deployment
 - `WASMPERMISSIONLESS`: Controls who can deploy contracts (0=restricted, 1=permissionless)
