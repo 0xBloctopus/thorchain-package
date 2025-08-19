@@ -89,7 +89,7 @@
   ],
   "forking": {
     "enabled": false,
-    "grpc": "thornode.ninerealms.com:9090",
+    "grpc": "grpc.thor.pfc.zone:443",
     "chain_id": "thorchain-mainnet-v1",
     "height": 0,
     "cache_enabled": true,

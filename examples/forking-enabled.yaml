@@ -8,7 +8,7 @@ chains:
         count: 1
     forking:
       enabled: true
-      grpc: "thornode.ninerealms.com:9090"
+      grpc: "grpc.thor.pfc.zone:443"
       chain_id: "thorchain-1"
       height: 22071722
       cache_enabled: true
