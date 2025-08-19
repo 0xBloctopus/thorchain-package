@@ -8,13 +8,13 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 NETWORK_TYPE=${1:-"local"}
 
 if [ "$NETWORK_TYPE" = "local" ]; then
-    ENCLAVE_NAME="local-thorchain"
-    API_PORT=$(kurtosis port print local-thorchain thorchain-node-1 api 2>/dev/null | cut -d: -f2 || echo "")
-    RPC_PORT=$(kurtosis port print local-thorchain thorchain-node-1 rpc 2>/dev/null | cut -d: -f2 || echo "")
+    ENCLAVE_NAME="thorchain-local"
+    API_PORT=$(kurtosis port print thorchain-local thorchain-node-1 api 2>/dev/null | cut -d: -f2 || echo "")
+    RPC_PORT=$(kurtosis port print thorchain-local thorchain-node-1 rpc 2>/dev/null | cut -d: -f2 || echo "")
 elif [ "$NETWORK_TYPE" = "forked" ]; then
-    ENCLAVE_NAME="forked-thorchain"
-    API_PORT=$(kurtosis port print forked-thorchain thorchain-node-1 api 2>/dev/null | cut -d: -f2 || echo "")
-    RPC_PORT=$(kurtosis port print forked-thorchain thorchain-node-1 rpc 2>/dev/null | cut -d: -f2 || echo "")
+    ENCLAVE_NAME="thorchain-forked"
+    API_PORT=$(kurtosis port print thorchain-forked thorchain-node-1 api 2>/dev/null | cut -d: -f2 || echo "")
+    RPC_PORT=$(kurtosis port print thorchain-forked thorchain-node-1 rpc 2>/dev/null | cut -d: -f2 || echo "")
 else
     echo "Usage: $0 [local|forked]"
     exit 1
@@ -120,7 +120,7 @@ deploy_counter_contract() {
     
     echo "Uploading counter contract..."
     
-    local wasm_b64=$(base64 -w 0 "$PROJECT_ROOT/build/counter.wasm")
+    local wasm_b64=$(base64 < "$PROJECT_ROOT/build/counter.wasm" | tr -d '\n')
     local chunk_size=8000
     local total_length=${#wasm_b64}
     local chunks=$((total_length / chunk_size + 1))
@@ -208,7 +208,7 @@ deploy_cw20_contract() {
     
     echo "Uploading CW20 contract with THORChain-specific parameters..."
     
-    local wasm_b64=$(base64 -w 0 "$PROJECT_ROOT/build/cw20-token.wasm")
+    local wasm_b64=$(base64 < "$PROJECT_ROOT/build/cw20-token.wasm" | tr -d '\n')
     local chunk_size=8000
     local total_length=${#wasm_b64}
     local chunks=$((total_length / chunk_size + 1))
