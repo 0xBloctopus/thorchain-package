@@ -151,6 +151,15 @@ main() {
     deploy_forked_network
     build_contracts
     setup_demo_keys
+    
+    echo ""
+    echo "Configuring mimir values for contract deployment..."
+    if "$SCRIPT_DIR/configure-mimir.sh"; then
+        echo "✓ Mimir configuration completed"
+    else
+        echo "⚠ Mimir configuration failed - contract deployment may not work on forked networks"
+    fi
+    
     validate_deployment
     print_demo_info
     
