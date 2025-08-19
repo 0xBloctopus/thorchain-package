@@ -96,5 +96,11 @@
     "cache_size": 10000,
     "timeout": "60s",
     "gas_cost_per_fetch": 0
+  },
+  "mimir": {
+    "enabled": true,
+    "values": {
+      "WASMPERMISSIONLESS": 1
+    }
   }
 }

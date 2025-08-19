@@ -42,6 +42,8 @@ def _one_chain(plan, chain_cfg):
             prefunded_mnemonics.append(account_key)
             prefunded_amounts.append("{}".format(amount))
 
+
+
     # -------------------------------------------------------------------------
     # 1) Generate files & keys in a disposable container
     # -------------------------------------------------------------------------
@@ -154,6 +156,7 @@ def _one_chain(plan, chain_cfg):
         "Reserve":                     chain_cfg["reserve_amount"],
         "ChainContracts":              contracts_json,
         "NodeAccounts":                nodeacc_json,
+
 
         # ---- module‑account & balances ----
         "BondModuleAddr":              BOND_MODULE_ADDR,
