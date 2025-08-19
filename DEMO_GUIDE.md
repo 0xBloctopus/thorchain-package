@@ -1,7 +1,7 @@
 # THORChain Development Environment Demo Guide
 
 ## Overview
-This guide demonstrates how to use the THORChain package as a complete development environment for WASM contract deployment, testing, and interaction via memo-based transactions. This is a comprehensive 75-minute demo that covers the entire developer workflow.
+This guide demonstrates how to use the THORChain package as a complete development environment for WASM contract deployment, testing, and interaction via memo-based transactions. This is a comprehensive 75-minute demo that covers the entire developer workflow, including automatic mimir configuration for contract deployment on forked networks.
 
 ## Quick Start
 
@@ -49,6 +49,7 @@ kurtosis run --enclave thorchain-forked . --args-file examples/forking-enabled.y
 - Local THORChain node: API=32769, RPC=32772
 - Forked THORChain node: API=32783, RPC=32786
 - Built contracts: counter.wasm (186KB), cw20-token.wasm (258KB)
+- WASMPERMISSIONLESS mimir value set to 1 on both networks
 - Prefunded demo keys imported
 
 ### 2. Actual Contract Deployment (15 minutes)
@@ -296,6 +297,104 @@ npm start
 - ⚠️ Memo-based transactions (experimental)
 - ✅ Bifrost connects and processes transactions
 - ✅ State persists across network restarts
+
+## Understanding THORChain Contract Deployment
+
+### Genesis vs Runtime Permissions
+
+THORChain uses a dual permission system for WASM contract deployment:
+
+1. **Genesis Permissions**: Set in the initial blockchain state
+   - Located in `src/genesis-generator/templates/genesis_thorchain.json.tmpl`
+   - Sets `code_upload_access.permission` to "Everybody"
+   - Sets `instantiate_default_permission` to "Everybody"
+
+2. **Runtime Permissions**: Controlled by THORChain's mimir system
+   - Can override genesis permissions at runtime
+   - Forked networks inherit mainnet mimir values
+   - `WASMPERMISSIONLESS` mimir value controls contract deployment
+
+### Why Forked Networks Need Mimir Configuration
+
+When deploying a forked THORChain network:
+- Genesis permissions are correctly set to "Everybody"
+- However, forked state includes mainnet mimir values
+- Mainnet has `WASMPERMISSIONLESS=0` (restrictive)
+- This overrides genesis permissions, causing "unauthorized" errors
+
+The demo automatically sets `WASMPERMISSIONLESS=1` on both networks to ensure consistent contract deployment behavior.
+
+### Mimir Configuration Commands
+
+To manually configure mimir values:
+```bash
+# Set WASMPERMISSIONLESS to enable contract deployment
+thornode tx thorchain mimir WASMPERMISSIONLESS 1 \
+  --from validator \
+  --keyring-backend test \
+  --chain-id thorchain \
+  --node tcp://localhost:26657 \
+  --yes \
+  --fees 2000000rune
+
+# Query current mimir values
+curl -s http://localhost:1317/thorchain/mimir
+```
+
+### Troubleshooting Contract Deployment
+
+If you encounter "unauthorized" errors during contract deployment:
+
+1. **Check mimir configuration**:
+   ```bash
+   ./scripts/configure-mimir.sh
+   ```
+
+2. **Verify WASMPERMISSIONLESS value**:
+   ```bash
+   curl -s http://127.0.0.1:32769/thorchain/mimir | jq '.WASMPERMISSIONLESS'
+   ```
+
+3. **Check genesis permissions**:
+   ```bash
+   curl -s http://127.0.0.1:32769/cosmos/wasm/v1/params
+   ```
+
+The key insight is that THORChain's mimir system provides runtime governance over contract deployment permissions, overriding the initial genesis configuration.
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Network startup failures**
+   - Run `kurtosis clean -a` before redeploying
+   - Check Docker resources (memory/disk space)
+   - Verify no port conflicts on 32769-32786 range
+
+2. **Contract deployment "unauthorized" errors**
+   - Run `./scripts/configure-mimir.sh` to set WASMPERMISSIONLESS=1
+   - Verify mimir configuration: `curl -s http://127.0.0.1:32769/thorchain/mimir`
+   - Check that validator account has sufficient balance for mimir transactions
+
+3. **Contract build failures**
+   - Ensure Rust toolchain is installed
+   - Add wasm32-unknown-unknown target: `rustup target add wasm32-unknown-unknown`
+   - Check contract dependencies in Cargo.toml
+
+4. **Bulk memory validation errors**
+   - This is expected with current THORChain WASM runtime
+   - Contracts build successfully but cannot execute
+   - Demonstrates deployment process despite runtime limitations
+
+5. **Mimir configuration failures**
+   - Ensure networks are running and producing blocks
+   - Verify validator key exists: `kurtosis service exec local-thorchain thorchain-node-1 "thornode keys list --keyring-backend test"`
+   - Check validator balance: `thornode query bank balances <validator-address>`
+
+6. **Bifrost connection issues**
+   - Verify docker-compose configuration
+   - Check external chain RPC endpoints
+   - Ensure proper network connectivity
 
 ### Next Steps for Production
 1. **Memo Processing**: Implement custom THORChain memo handlers for contract execution
