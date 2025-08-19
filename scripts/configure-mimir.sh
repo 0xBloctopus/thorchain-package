@@ -56,9 +56,9 @@ set_mimir_value() {
     
     local enclave_name
     if [ "$network_type" = "local" ]; then
-        enclave_name="local-thorchain"
+        enclave_name="thorchain-local"
     else
-        enclave_name="forked-thorchain"
+        enclave_name="thorchain-forked"
     fi
     
     local result
@@ -114,16 +114,16 @@ main() {
     echo "THORChain Mimir Configuration Script"
     echo "===================================="
     
-    local local_api_port=$(kurtosis port print local-thorchain thorchain-node-1 api 2>/dev/null | cut -d: -f2 || echo "")
-    local local_rpc_port=$(kurtosis port print local-thorchain thorchain-node-1 rpc 2>/dev/null | cut -d: -f2 || echo "")
+    local local_api_port=$(kurtosis port print thorchain-local thorchain-node-1 api 2>/dev/null | cut -d: -f2 || echo "")
+    local local_rpc_port=$(kurtosis port print thorchain-local thorchain-node-1 rpc 2>/dev/null | cut -d: -f2 || echo "")
     
-    local forked_api_port=$(kurtosis port print forked-thorchain thorchain-node-1 api 2>/dev/null | cut -d: -f2 || echo "")
-    local forked_rpc_port=$(kurtosis port print forked-thorchain thorchain-node-1 rpc 2>/dev/null | cut -d: -f2 || echo "")
+    local forked_api_port=$(kurtosis port print thorchain-forked thorchain-node-1 api 2>/dev/null | cut -d: -f2 || echo "")
+    local forked_rpc_port=$(kurtosis port print thorchain-forked thorchain-node-1 rpc 2>/dev/null | cut -d: -f2 || echo "")
     
     local local_configured=false
     local forked_configured=false
     
-    if kurtosis enclave ls | grep -q "local-thorchain.*RUNNING" && [ -n "$local_api_port" ] && [ -n "$local_rpc_port" ]; then
+    if kurtosis enclave ls | grep -q "thorchain-local.*RUNNING" && [ -n "$local_api_port" ] && [ -n "$local_rpc_port" ]; then
         echo "Found running local network (API: $local_api_port, RPC: $local_rpc_port)"
         if configure_network_mimir "local" "$local_api_port" "$local_rpc_port"; then
             local_configured=true
@@ -132,7 +132,7 @@ main() {
         echo "Local network not running or ports not accessible - skipping mimir configuration"
     fi
     
-    if kurtosis enclave ls | grep -q "forked-thorchain.*RUNNING" && [ -n "$forked_api_port" ] && [ -n "$forked_rpc_port" ]; then
+    if kurtosis enclave ls | grep -q "thorchain-forked.*RUNNING" && [ -n "$forked_api_port" ] && [ -n "$forked_rpc_port" ]; then
         echo "Found running forked network (API: $forked_api_port, RPC: $forked_rpc_port)"
         if configure_network_mimir "forked" "$forked_api_port" "$forked_rpc_port"; then
             forked_configured=true

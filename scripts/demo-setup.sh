@@ -91,7 +91,7 @@ setup_demo_keys() {
     echo "Setting up demo keys..."
     
     local mnemonic
-    if mnemonic=$(kurtosis service exec local-thorchain thorchain-faucet "cat /tmp/mnemonic/mnemonic.txt" 2>/dev/null); then
+    if mnemonic=$(kurtosis service exec thorchain-local thorchain-faucet "cat /tmp/mnemonic/mnemonic.txt" 2>/dev/null); then
         echo "✓ Retrieved prefunded mnemonic"
         
         echo "$mnemonic" | thornode keys add demo-key --recover --keyring-backend test --yes 2>/dev/null || true
