@@ -8,17 +8,26 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 NETWORK_TYPE=${1:-"local"}
 
 if [ "$NETWORK_TYPE" = "local" ]; then
-    RPC_ENDPOINT="http://127.0.0.1:32772"
-    API_ENDPOINT="http://127.0.0.1:32769"
     ENCLAVE_NAME="local-thorchain"
+    API_PORT=$(kurtosis port print local-thorchain thorchain-node-1 api 2>/dev/null | cut -d: -f2 || echo "")
+    RPC_PORT=$(kurtosis port print local-thorchain thorchain-node-1 rpc 2>/dev/null | cut -d: -f2 || echo "")
 elif [ "$NETWORK_TYPE" = "forked" ]; then
-    RPC_ENDPOINT="http://127.0.0.1:32786"
-    API_ENDPOINT="http://127.0.0.1:32783"
     ENCLAVE_NAME="forked-thorchain"
+    API_PORT=$(kurtosis port print forked-thorchain thorchain-node-1 api 2>/dev/null | cut -d: -f2 || echo "")
+    RPC_PORT=$(kurtosis port print forked-thorchain thorchain-node-1 rpc 2>/dev/null | cut -d: -f2 || echo "")
 else
     echo "Usage: $0 [local|forked]"
     exit 1
 fi
+
+if [ -z "$API_PORT" ] || [ -z "$RPC_PORT" ]; then
+    echo "✗ Cannot determine network ports for $NETWORK_TYPE network"
+    echo "Ensure the network is running: kurtosis enclave ls"
+    exit 1
+fi
+
+RPC_ENDPOINT="http://127.0.0.1:$RPC_PORT"
+API_ENDPOINT="http://127.0.0.1:$API_PORT"
 
 echo "THORChain Actual Contract Deployment"
 echo "===================================="
@@ -41,6 +50,35 @@ check_network() {
     fi
     
     echo "✓ Network connectivity verified"
+    
+    check_mimir_configuration
+}
+
+check_mimir_configuration() {
+    echo "Checking mimir configuration for contract deployment..."
+    
+    local mimir_values
+    mimir_values=$(kurtosis service exec "$ENCLAVE_NAME" thorchain-node-1 \
+        "curl -s http://localhost:1317/thorchain/mimir" 2>/dev/null || echo "{}")
+    
+    if echo "$mimir_values" | grep -q '"WASMPERMISSIONLESS"'; then
+        local wasmpermissionless
+        wasmpermissionless=$(echo "$mimir_values" | jq -r '.WASMPERMISSIONLESS // "0"' 2>/dev/null || echo "0")
+        
+        if [ "$wasmpermissionless" = "1" ]; then
+            echo "✓ WASMPERMISSIONLESS=1 configured on $NETWORK_TYPE network"
+            return 0
+        else
+            echo "⚠ WASMPERMISSIONLESS=$wasmpermissionless on $NETWORK_TYPE network (should be 1)"
+        fi
+    else
+        echo "⚠ WASMPERMISSIONLESS not found in mimir values on $NETWORK_TYPE network"
+    fi
+    
+    echo "Note: Contract deployment may fail due to mimir configuration"
+    echo "Run 'scripts/configure-mimir.sh' to fix mimir values"
+    echo "Proceeding with deployment test..."
+    return 0
 }
 
 setup_keys() {
