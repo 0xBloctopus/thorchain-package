@@ -3,7 +3,7 @@ chains:
     type: thorchain
     chain_id: thorchain-1
     participants:
-      - image: "tiljordan/thornode:grpc-forking"
+      - image: "tiljordan/thornode:grpc-forking-local"
         account_balance: 1000000000000000
         bond_amount: "300000000000000"
         count: 1
