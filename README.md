@@ -104,7 +104,8 @@ After deployment, services are accessible at:
 ### THORChain Nodes
 - **RPC**: `http://<node-ip>:26657` - Tendermint RPC
 - **API**: `http://<node-ip>:1317` - Cosmos REST API  
-- **gRPC**: `<node-ip>:9090` - Cosmos gRPC
+- **gRPC**: `<node-ip>:9090` - Cosmos gRPC (local)
+- For mainnet forking, use gRPC endpoint `grpc.thor.pfc.zone:443` (TLS)
 - **P2P**: `<node-ip>:26656` - Peer-to-peer networking
 - **Metrics**: `http://<node-ip>:26660` - Prometheus metrics
 
@@ -163,7 +164,7 @@ chains:
         count: 1
     forking:
       enabled: true
-      rpc: "https://rpc.ninerealms.com"
+      grpc: "grpc.thor.pfc.zone:443"
       chain_id: "thorchain-1"
       height: 22071722
       cache_enabled: true
