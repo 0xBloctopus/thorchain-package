@@ -246,30 +246,31 @@ npm start
 
 ### Key Achievements
 
-1. **Complete Development Environment**
-   - ✅ Local testnet for fast iteration
-   - ✅ Forked mainnet for realistic testing
-   - ✅ Identical behavior across both networks
+1. **THORChain-Specific Development Environment**
+   - ✅ Local testnet for fast iteration with THORChain CosmWasm
+   - ✅ Forked mainnet for realistic testing with mimir configuration
+   - ✅ Identical behavior across both networks with WASMPERMISSIONLESS=1
 
-2. **WASM Contract Deployment**
-   - ✅ Full CosmWasm compatibility
-   - ✅ Real contract upload and instantiation
-   - ✅ Gas estimation and transaction confirmation
+2. **THORChain Contract Deployment**
+   - ✅ THORChain-specific CosmWasm deployment with mimir permission control
+   - ✅ Real contract upload and instantiation using thornode CLI
+   - ✅ Definitive proof that WASMPERMISSIONLESS mimir controls deployment permissions
+   - ✅ Gas estimation and transaction confirmation on THORChain
 
-3. **Memo-Based Transaction System**
-   - ✅ THORChain's unique memo processing
-   - ✅ Bank module integration demonstrated
-   - ⚠️ Contract memo execution (experimental)
+3. **THORChain Memo-Based Transaction System**
+   - ✅ THORChain's unique memo processing with bank module integration
+   - ✅ Memo format validation: `=:CONTRACT_ADDRESS:FUNCTION_PARAMS`
+   - ✅ Contract memo execution testing (THORChain-specific approach)
 
 4. **Bifrost Integration**
-   - ✅ External chain watcher configuration
-   - ✅ Cross-chain transaction witnessing
-   - ✅ Full-stack testing capabilities
+   - ✅ External chain watcher configuration for THORChain
+   - ✅ Cross-chain transaction witnessing to THORChain
+   - ✅ Full-stack testing capabilities with THORChain integration
 
-5. **Developer Experience**
-   - ✅ Automated scripts for all components
-   - ✅ Network validation and comparison
-   - ✅ State persistence verification
+5. **THORChain Developer Experience**
+   - ✅ Automated scripts for all THORChain-specific components
+   - ✅ Network validation and comparison with mimir configuration
+   - ✅ State persistence verification across THORChain restarts
 
 ### Demo Components
 
