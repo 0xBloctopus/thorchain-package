@@ -59,9 +59,9 @@ set_mimir_value() {
     
     local enclave_name
     if [ "$network_type" = "local" ]; then
-        enclave_name="local-thorchain"
+        enclave_name="thorchain-local"
     else
-        enclave_name="forked-thorchain"
+        enclave_name="thorchain-forked"
     fi
     
     local result
@@ -91,9 +91,9 @@ test_thorchain_contract_deployment() {
     
     local enclave_name
     if [ "$network_type" = "local" ]; then
-        enclave_name="local-thorchain"
+        enclave_name="thorchain-local"
     else
-        enclave_name="forked-thorchain"
+        enclave_name="thorchain-forked"
     fi
     
     echo "Preparing contract file for THORChain deployment..."
@@ -188,9 +188,9 @@ test_memo_based_contract_call() {
     
     local enclave_name
     if [ "$network_type" = "local" ]; then
-        enclave_name="local-thorchain"
+        enclave_name="thorchain-local"
     else
-        enclave_name="forked-thorchain"
+        enclave_name="thorchain-forked"
     fi
     
     local memo_result
@@ -215,8 +215,8 @@ main() {
     echo ""
     
     local network_type="forked"
-    local api_port=$(kurtosis port print forked-thorchain thorchain-node-1 api 2>/dev/null | cut -d: -f2 || echo "")
-    local rpc_port=$(kurtosis port print forked-thorchain thorchain-node-1 rpc 2>/dev/null | cut -d: -f2 || echo "")
+    local api_port=$(kurtosis port print thorchain-forked thorchain-node-1 api 2>/dev/null | cut -d: -f2 || echo "")
+    local rpc_port=$(kurtosis port print thorchain-forked thorchain-node-1 rpc 2>/dev/null | cut -d: -f2 || echo "")
     
     if [ -z "$api_port" ] || [ -z "$rpc_port" ]; then
         echo "✗ Cannot determine network ports for forked network"
