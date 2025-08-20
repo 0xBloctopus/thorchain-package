@@ -60,6 +60,17 @@ def apply_chain_defaults(chain, defaults):
     for key, value in defaults["forking"].items():
         chain["forking"][key] = chain["forking"].get(key, value)
 
+    # Apply defaults to mimir
+    chain["mimir"] = chain.get("mimir", {})
+    for key, value in defaults["mimir"].items():
+        if key == "values":
+            # Handle nested mimir values
+            chain["mimir"][key] = chain["mimir"].get(key, {})
+            for mimir_key, mimir_value in value.items():
+                chain["mimir"][key][mimir_key] = chain["mimir"][key].get(mimir_key, mimir_value)
+        else:
+            chain["mimir"][key] = chain["mimir"].get(key, value)
+
     return chain
 
 def validate_input_args(input_args):
