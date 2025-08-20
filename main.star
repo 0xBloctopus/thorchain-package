@@ -48,9 +48,6 @@ def run(plan, args):
             description = "Waiting for first block for chain " + chain_name
         )
 
-        # Configure MIMIR values after network is running
-        mimir_configurator.configure_mimir_values(plan, chain, node_info)
-
         for service in service_launchers:
             if service in additional_services:
                 plan.print("Launching {} for chain {}".format(service, chain_name))
@@ -64,5 +61,8 @@ def run(plan, args):
                     forking_config = chain.get("forking", {})
                     prefunded_mnemonics = genesis_files[chain_name]["prefunded_mnemonics"]
                     service_launchers[service](plan, chain_name, chain_id, forking_config, prefunded_mnemonics)
+
+        # Configure MIMIR values AFTER all services are deployed
+        mimir_configurator.configure_mimir_values(plan, chain, node_info)
 
     plan.print(genesis_files)
