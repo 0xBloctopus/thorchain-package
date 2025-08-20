@@ -32,12 +32,11 @@ def configure_mimir_values(plan, chain_config, node_info):
                     command=[
                         "/bin/sh", "-lc",
                         "thornode keys show validator -a --keyring-backend test | tr -d '\n'"
-                    ],
-                    extract={"addr": "trim"}
+                    ]
                 ),
                 description="Read validator address for funding"
             )
-            validator_addr = res.get("extract.addr", "").strip()
+            validator_addr = res.get("output", "").replace("\n", "").replace("\r", "")
 
             if validator_addr:
                 # 2) Ask faucet to fund the validator (HTTP POST /fund/<addr>)
