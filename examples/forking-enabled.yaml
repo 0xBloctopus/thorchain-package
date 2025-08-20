@@ -2,10 +2,14 @@ chains:
   - name: thorchain
     type: thorchain
     participants:
-      - image: "fravlaca/thornode-forking:1.0.6"
+      - image: "fravlaca/thornode-forking:1.0.7"
         account_balance: 1000000000000000
         bond_amount: "300000000000000"
         count: 1
+    mimir:
+      enabled: true
+      values:
+        WASMPERMISSIONLESS: 1
     forking:
       enabled: true
       grpc: "grpc.thor.pfc.zone:443"
