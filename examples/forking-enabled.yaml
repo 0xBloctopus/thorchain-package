@@ -2,7 +2,7 @@ chains:
   - name: thorchain
     type: thorchain
     participants:
-      - image: "tiljordan/thornode:grpc-forking"
+      - image: "fravlaca/thornode-forking:1.0.6"
         account_balance: 1000000000000000
         bond_amount: "300000000000000"
         count: 1
@@ -15,3 +15,4 @@ chains:
       cache_size: 10000
       timeout: "60s"
       gas_cost_per_fetch: 1000
+ 
