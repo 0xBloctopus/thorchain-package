@@ -1,0 +1,19 @@
+chains:
+  - name: thorchain
+    type: thorchain
+    chain_id: thorchain
+    # Add validator mnemonic to prefunded accounts for MIMIR transaction fees
+    prefunded_accounts:
+      # Validator gets extra spendable funds for MIMIR operations
+      "interest hotel keep obey dignity shine ginger afraid grow fork palm arena useful math spawn treat elephant humor venture online suspect parrot worth shadow": 100000000000
+    participants:
+      - image: registry.gitlab.com/thorchain/thornode:mainnet
+        account_balance: 1000000000000000
+        bond_amount: "300000000000000"
+        count: 1
+        staking: true
+    additional_services:
+      - faucet
+      - bdjuno
+    forking:
+      enabled: false
