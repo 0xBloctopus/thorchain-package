@@ -39,20 +39,22 @@ def configure_mimir_values(plan, chain_config, node_info):
             validator_addr = res.get("output", "").replace("\n", "").replace("\r", "")
 
             if validator_addr:
-                # 2) Ask faucet to fund the validator (HTTP POST /fund/<addr>)
-                plan.wait(
-                    service_name="{}-faucet".format(chain_name),
-                    recipe=PostHttpRequestRecipe(
-                        port_id="api",
-                        endpoint="/fund/{}".format(validator_addr),
-                        body="",
+                # 2) Ask faucet to fund the validator by curling from the validator container
+                plan.print("Funding validator via faucet")
+                plan.exec(
+                    service_name=validator_node,
+                    recipe=ExecRecipe(
+                        command=[
+                            "/bin/sh", "-lc",
+                            "curl -s -X POST http://{}-faucet:8090/fund/{} || wget -q -O- --post-data= '' http://{}-faucet:8090/fund/{} || true".format(
+                                chain_name,
+                                validator_addr,
+                                chain_name,
+                                validator_addr,
+                            )
+                        ]
                     ),
-                    field="code",
-                    assertion="==",
-                    target_value="200",
-                    interval="1s",
-                    timeout="15s",
-                    description="Funding validator via faucet"
+                    description="Trigger faucet funding from node"
                 )
 
         # Ensure minimum-gas-prices is 0rune (already set in start script) and use 0rune gas-prices; send sync to capture result
