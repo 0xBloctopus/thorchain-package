@@ -89,12 +89,18 @@
   ],
   "forking": {
     "enabled": false,
-    "rpc": "https://rpc.ninerealms.com",
+    "grpc": "grpc.thor.pfc.zone:443",
     "chain_id": "thorchain-mainnet-v1",
     "height": 0,
     "cache_enabled": true,
     "cache_size": 10000,
     "timeout": "60s",
     "gas_cost_per_fetch": 0
+  },
+  "mimir": {
+    "enabled": true,
+    "values": {
+      "WASMPERMISSIONLESS": 1
+    }
   }
 }

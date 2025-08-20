@@ -17,6 +17,8 @@ This package automates the deployment of complete THORChain networks through a c
 - **Auxiliary services** including token faucets, blockchain indexers, and trading interfaces
 - **State forking** support for testing against mainnet data
 - **Flexible configuration** with comprehensive defaults and customization options
+- **CosmWasm contract deployment** with mimir-based permission control
+- **Contract development workflow** with automated build and deployment scripts
 
 ## Prerequisites
 
@@ -104,7 +106,8 @@ After deployment, services are accessible at:
 ### THORChain Nodes
 - **RPC**: `http://<node-ip>:26657` - Tendermint RPC
 - **API**: `http://<node-ip>:1317` - Cosmos REST API  
-- **gRPC**: `<node-ip>:9090` - Cosmos gRPC
+- **gRPC**: `<node-ip>:9090` - Cosmos gRPC (local)
+- For mainnet forking, use gRPC endpoint `grpc.thor.pfc.zone:443` (TLS)
 - **P2P**: `<node-ip>:26656` - Peer-to-peer networking
 - **Metrics**: `http://<node-ip>:26660` - Prometheus metrics
 
@@ -163,7 +166,7 @@ chains:
         count: 1
     forking:
       enabled: true
-      rpc: "https://rpc.ninerealms.com"
+      grpc: "grpc.thor.pfc.zone:443"
       chain_id: "thorchain-1"
       height: 22071722
       cache_enabled: true
@@ -182,6 +185,92 @@ chains:
     faucet:
       transfer_amount: 500000000  # Custom faucet amount
 ```
+
+## Contract Deployment
+
+### Overview
+
+THORChain supports CosmWasm smart contracts through the Rujira application layer. This package includes comprehensive tooling for contract development, deployment, and testing.
+
+### Quick Start
+
+```bash
+# 1. Build test contracts
+./scripts/build-contracts.sh
+
+# 2. Deploy networks
+kurtosis run --enclave thorchain-local . --args-file examples/forking-disabled.yaml
+kurtosis run --enclave thorchain-forked . --args-file examples/forking-enabled.yaml
+
+# 3. Configure mimir for contract deployment
+./scripts/configure-mimir.sh
+
+# 4. Deploy contracts
+./scripts/deploy-actual-contracts.sh local
+./scripts/deploy-actual-contracts.sh forked
+```
+
+### Contract Development Workflow
+
+1. **Build Contracts**: The package includes sample contracts (`counter` and `cw20-token`)
+2. **Network Deployment**: Deploy both local (clean state) and forked (mainnet state) networks
+3. **Mimir Configuration**: Set `WASMPERMISSIONLESS=1` to enable permissionless deployment
+4. **Contract Upload**: Use `thornode tx wasm store` to upload contract bytecode
+5. **Contract Instantiation**: Use `thornode tx wasm instantiate` to create contract instances
+
+### Key Components
+
+- **Build Scripts**: `scripts/build-contracts.sh` - Builds WASM contracts with proper optimization
+- **Deployment Scripts**: `scripts/deploy-actual-contracts.sh` - Handles actual contract deployment
+- **Mimir Configuration**: `scripts/configure-mimir.sh` - Configures runtime permissions
+- **Sample Contracts**: Basic counter and CW20 token implementations
+
+### THORChain-Specific Considerations
+
+#### Mimir Permission System
+THORChain uses a dual permission system:
+- **Genesis Permissions**: Set to "Everybody" in genesis configuration
+- **Runtime Permissions**: Controlled by `WASMPERMISSIONLESS` mimir value
+
+Forked networks inherit mainnet mimir values where `WASMPERMISSIONLESS=0`, requiring manual configuration.
+
+##### Defaults and overrides
+- By default, this package sets `mimir.values.WASMPERMISSIONLESS: 1` in `src/package_io/thorchain_defaults.json`.
+- You can override in your args YAML:
+
+```yaml
+chains:
+  - name: thorchain
+    type: thorchain
+    mimir:
+      enabled: true
+      values:
+        WASMPERMISSIONLESS: 0   # override default 1
+```
+
+In forking-enabled runs, the configurator first funds the validator via the faucet, then submits the Mimir vote (sync) to avoid insufficient-funds errors.
+
+#### WASM Runtime Limitations
+**Current Limitation**: THORChain's WASM runtime doesn't support bulk memory operations.
+- Contracts compile successfully but fail WASM validation during deployment
+- Error: "bulk memory support is not enabled"
+- This is a known limitation, not a deployment failure
+
+#### Development Recommendations
+1. Use local networks for rapid iteration and permission testing
+2. Use forked networks for realistic state testing
+3. Focus on deployment process validation rather than contract execution
+4. Monitor THORChain updates for bulk memory support
+
+### Deployment Testing
+
+The package includes comprehensive deployment testing:
+- Validates mimir configuration behavior
+- Tests contract upload and permission control
+- Demonstrates deployment process end-to-end
+- Documents known limitations and workarounds
+
+See `CONTRACT_DEPLOYMENT_TEST_RESULTS_UPDATED.md` for detailed test results.
 
 ## Network Architecture
 

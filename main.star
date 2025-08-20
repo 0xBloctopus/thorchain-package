@@ -4,6 +4,7 @@ faucet = import_module("./src/faucet/faucet_launcher.star")
 network_launcher = import_module("./src/network_launcher/network_launcher.star")
 bdjuno = import_module("./src/bdjuno/bdjuno_launcher.star")
 swap_ui = import_module("./src/swap-ui/swap_ui_launcher.star")
+mimir_configurator = import_module("./src/mimir-config/mimir_configurator.star")
 
 def run(plan, args):
     parsed_args = input_parser.input_parser(args)
@@ -60,5 +61,8 @@ def run(plan, args):
                     forking_config = chain.get("forking", {})
                     prefunded_mnemonics = genesis_files[chain_name]["prefunded_mnemonics"]
                     service_launchers[service](plan, chain_name, chain_id, forking_config, prefunded_mnemonics)
+
+        # Configure MIMIR values AFTER all services are deployed
+        mimir_configurator.configure_mimir_values(plan, chain, node_info)
 
     plan.print(genesis_files)
