@@ -234,6 +234,22 @@ THORChain uses a dual permission system:
 
 Forked networks inherit mainnet mimir values where `WASMPERMISSIONLESS=0`, requiring manual configuration.
 
+##### Defaults and overrides
+- By default, this package sets `mimir.values.WASMPERMISSIONLESS: 1` in `src/package_io/thorchain_defaults.json`.
+- You can override in your args YAML:
+
+```yaml
+chains:
+  - name: thorchain
+    type: thorchain
+    mimir:
+      enabled: true
+      values:
+        WASMPERMISSIONLESS: 0   # override default 1
+```
+
+In forking-enabled runs, the configurator first funds the validator via the faucet, then submits the Mimir vote (sync) to avoid insufficient-funds errors.
+
 #### WASM Runtime Limitations
 **Current Limitation**: THORChain's WASM runtime doesn't support bulk memory operations.
 - Contracts compile successfully but fail WASM validation during deployment
