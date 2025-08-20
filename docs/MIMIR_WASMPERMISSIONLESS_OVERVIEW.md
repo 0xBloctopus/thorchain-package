@@ -35,7 +35,7 @@ chains:
       values:
         WASMPERMISSIONLESS: 1
     participants:
-      - image: thornode-local:mimir-bond-ante-2  # dev-only local image
+      - image: fravlaca/thornode-forking:1.0.6"
         account_balance: 1000000000000000
         bond_amount: "300000000000000"
         count: 1
