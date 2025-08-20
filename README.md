@@ -18,7 +18,6 @@ This package automates the deployment of complete THORChain networks through a c
 - **State forking** support for testing against mainnet data
 - **Flexible configuration** with comprehensive defaults and customization options
 - **CosmWasm contract deployment** with mimir-based permission control
-- **Contract development workflow** with automated build and deployment scripts
 
 ## Prerequisites
 
@@ -186,44 +185,13 @@ chains:
       transfer_amount: 500000000  # Custom faucet amount
 ```
 
-## Contract Deployment
-
-### Overview
-
-THORChain supports CosmWasm smart contracts through the Rujira application layer. This package includes comprehensive tooling for contract development, deployment, and testing.
-
-### Quick Start
-
-```bash
-# 1. Build test contracts
-./scripts/build-contracts.sh
-
-# 2. Deploy networks
-kurtosis run --enclave thorchain-local . --args-file examples/forking-disabled.yaml
-kurtosis run --enclave thorchain-forked . --args-file examples/forking-enabled.yaml
-
-# 3. Configure mimir for contract deployment
-./scripts/configure-mimir.sh
-
-# 4. Deploy contracts
-./scripts/deploy-actual-contracts.sh local
-./scripts/deploy-actual-contracts.sh forked
-```
 
 ### Contract Development Workflow
 
-1. **Build Contracts**: The package includes sample contracts (`counter` and `cw20-token`)
-2. **Network Deployment**: Deploy both local (clean state) and forked (mainnet state) networks
-3. **Mimir Configuration**: Set `WASMPERMISSIONLESS=1` to enable permissionless deployment
-4. **Contract Upload**: Use `thornode tx wasm store` to upload contract bytecode
-5. **Contract Instantiation**: Use `thornode tx wasm instantiate` to create contract instances
-
-### Key Components
-
-- **Build Scripts**: `scripts/build-contracts.sh` - Builds WASM contracts with proper optimization
-- **Deployment Scripts**: `scripts/deploy-actual-contracts.sh` - Handles actual contract deployment
-- **Mimir Configuration**: `scripts/configure-mimir.sh` - Configures runtime permissions
-- **Sample Contracts**: Basic counter and CW20 token implementations
+1. **Network Deployment**: Deploy both local (clean state) and forked (mainnet state) networks
+2. **Mimir Configuration**: Make sure to have set `WASMPERMISSIONLESS=1` to enable permissionless deployment
+3. **Contract Upload**: Use `thornode tx wasm store` to upload contract bytecode
+4. **Contract Instantiation**: Use `thornode tx wasm instantiate` to create contract instances
 
 ### THORChain-Specific Considerations
 
@@ -261,16 +229,6 @@ In forking-enabled runs, the configurator first funds the validator via the fauc
 2. Use forked networks for realistic state testing
 3. Focus on deployment process validation rather than contract execution
 4. Monitor THORChain updates for bulk memory support
-
-### Deployment Testing
-
-The package includes comprehensive deployment testing:
-- Validates mimir configuration behavior
-- Tests contract upload and permission control
-- Demonstrates deployment process end-to-end
-- Documents known limitations and workarounds
-
-See `CONTRACT_DEPLOYMENT_TEST_RESULTS_UPDATED.md` for detailed test results.
 
 ## Network Architecture
 
