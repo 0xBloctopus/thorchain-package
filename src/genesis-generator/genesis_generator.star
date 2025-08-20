@@ -195,7 +195,7 @@ def _start_genesis_service(plan, chain_cfg, binary, config_dir):
     plan.add_service(
         name="genesis-service",
         config=ServiceConfig(
-            image="thornode-local:mimir-bond-ante-2",
+            image="registry.gitlab.com/thorchain/thornode:mainnet",
             files={},
         )
     )
