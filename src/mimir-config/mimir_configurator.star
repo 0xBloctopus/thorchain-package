@@ -73,23 +73,7 @@ def configure_mimir_values(plan, chain_config, node_info):
                 ),
                 description="Setting MIMIR {}={} from {}".format(mimir_key, mimir_value, validator_node)
             )
-
-            # Brief wait to allow inclusion
-            plan.wait(
-                service_name=validator_node,
-                recipe=GetHttpRequestRecipe(
-                    port_id="rpc",
-                    endpoint="/status",
-                    extract={
-                        "block": ".result.sync_info.latest_block_height"
-                    }
-                ),
-                field="extract.block",
-                assertion=">=",
-                target_value="2",
-                interval="1s",
-                timeout="30s",
-                description="Waiting for MIMIR tx from {}".format(validator_node)
-            )
+            
+            # Transaction is sent with --broadcast-mode sync which waits for inclusion
 
     plan.print("✅ MIMIR configuration complete for chain {}".format(chain_name))
