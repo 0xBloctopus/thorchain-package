@@ -2,7 +2,7 @@ chains:
   - name: thorchain
     type: thorchain
     participants:
-      - image: "fravlaca/thornode-forking:1.0.7"
+      - image: "tiljordan/thornode-forking:1.0.9"
         account_balance: 1000000000000000
         bond_amount: "300000000000000"
         count: 1
