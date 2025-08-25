@@ -47,6 +47,10 @@ sed -i 's/^enabled-unsafe-cors = false/enabled-unsafe-cors = true/' $CONFIG_FOLD
 sed -i 's/^prometheus = false/prometheus = true/' $CONFIG_FOLDER/config.toml
 sed -i 's/^prometheus_listen_addr = ":26660"/prometheus_listen_addr = "0.0.0.0:26660"/' $CONFIG_FOLDER/config.toml
 
+# Temporary: install strace if available for debugging
+if ! command -v strace >/dev/null 2>&1; then
+    apt-get update && apt-get install -y strace || true
+fi
 echo "Node configuration completed"
 
 # Start the node with seed options if provided
