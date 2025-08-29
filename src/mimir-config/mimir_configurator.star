@@ -46,7 +46,7 @@ def configure_mimir_values(plan, chain_config, node_info):
                     recipe=ExecRecipe(
                         command=[
                             "/bin/sh", "-lc",
-                            "curl -sf -X POST http://{}-faucet:8090/fund/{} || true".format(
+                            "curl -sf --connect-timeout 5 --max-time 15 -X POST --data '' http://{}-faucet:8090/fund/{} || true".format(
                                 chain_name,
                                 validator_addr,
                             )
