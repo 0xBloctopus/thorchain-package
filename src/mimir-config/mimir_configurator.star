@@ -67,7 +67,7 @@ def configure_mimir_values(plan, chain_config, node_info):
                 recipe=ExecRecipe(
                     command=[
                         "/bin/sh","-lc",
-                        "for i in $(seq 1 60); do curl -sf --connect-timeout 1 --max-time 2 http://localhost:26657/health && curl -sf --connect-timeout 1 --max-time 2 http://localhost:26657/status && break || sleep 1; done"
+                        "for i in $(seq 1 90); do curl -sf --connect-timeout 1 --max-time 2 http://localhost:26657/health && curl -sf --connect-timeout 1 --max-time 2 http://localhost:26657/status && break || sleep 1; done && for i in $(seq 1 90); do h=$(curl -sf --connect-timeout 1 --max-time 2 http://localhost:26657/status | grep -o '\"latest_block_height\":\"[0-9]*\"' | grep -o '[0-9]*'); test -n \"$h\" || h=0; [ \"$h\" -ge 2 ] && break || sleep 1; done"
                     ]
                 ),
                 description="Wait for CometBFT RPC health on {}".format(validator_node),
