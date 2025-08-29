@@ -67,7 +67,7 @@ def configure_mimir_values(plan, chain_config, node_info):
                 recipe=ExecRecipe(
                     command=[
                         "/bin/sh","-lc",
-                        "for i in $(seq 1 90); do curl -sf --connect-timeout 1 --max-time 2 http://localhost:26657/health && curl -sf --connect-timeout 1 --max-time 2 http://localhost:26657/status && break || sleep 1; done && for i in $(seq 1 90); do h=$(curl -sf --connect-timeout 1 --max-time 2 http://localhost:26657/status | grep -o '\"latest_block_height\":\"[0-9]*\"' | grep -o '[0-9]*'); test -n \"$h\" || h=0; [ \"$h\" -ge 2 ] && break || sleep 1; done"
+                        "for i in $(seq 1 120); do curl -sf --connect-timeout 1 --max-time 2 http://localhost:26657/health && curl -sf --connect-timeout 1 --max-time 2 http://localhost:26657/status && break || sleep 1; done && for i in $(seq 1 120); do h=$(curl -sf --connect-timeout 1 --max-time 2 http://localhost:26657/status | grep -o '\"latest_block_height\":\"[0-9]*\"' | grep -o '[0-9]*'); test -n \"$h\" || h=0; [ \"$h\" -ge 3 ] && break || sleep 1; done"
                     ]
                 ),
                 description="Wait for CometBFT RPC health on {}".format(validator_node),
@@ -79,7 +79,7 @@ def configure_mimir_values(plan, chain_config, node_info):
                 recipe=ExecRecipe(
                     command=[
                         "/bin/sh", "-lc",
-                        "for i in $(seq 1 10); do thornode tx thorchain mimir {} {} --from validator --keyring-backend test --chain-id {} --yes --broadcast-mode sync -o json --node tcp://localhost:26657 --gas-prices 0rune && exit 0; echo 'MIMIR tx failed (attempt '$i'), retrying...' 1>&2; sleep 3; done; exit 1".format(
+                        "for i in $(seq 1 15); do thornode tx thorchain mimir {} {} --from validator --keyring-backend test --chain-id {} --yes --broadcast-mode sync -o json --node tcp://localhost:26657 --gas-prices 0rune && exit 0; echo 'MIMIR tx failed (attempt '$i'), retrying...' 1>&2; sleep 3; done; exit 1".format(
                             mimir_key, mimir_value, tx_chain_id
                         )
                     ]

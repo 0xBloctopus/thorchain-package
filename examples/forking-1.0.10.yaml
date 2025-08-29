@@ -1,0 +1,22 @@
+chains:
+  - name: thorchain
+    type: thorchain
+    participants:
+      - image: "tiljordan/thornode-forking:1.0.10"
+        account_balance: 1000000000000000
+        bond_amount: "300000000000000"
+        count: 1
+    chain_id: "thorchain-1"
+    mimir:
+      enabled: true
+      values:
+        WASMPERMISSIONLESS: 1
+    forking:
+      enabled: true
+      grpc: "grpc.thor.pfc.zone:443"
+      chain_id: "thorchain-1"
+      height: 22071722
+      cache_enabled: true
+      cache_size: 10000
+      timeout: "60s"
+      gas_cost_per_fetch: 1000
