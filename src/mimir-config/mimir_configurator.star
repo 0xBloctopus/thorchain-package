@@ -18,6 +18,10 @@ def configure_mimir_values(plan, chain_config, node_info):
     # Detect forking mode to optionally fund validator before sending MsgMimir
     forking_cfg = chain_config.get("forking", {})
     forking_enabled = bool(forking_cfg.get("enabled", False))
+    tx_chain_id = chain_id
+    if forking_enabled:
+        tx_chain_id = "thorchain-1"
+
 
     # Submit votes from all validators (handles 2/2 or >=2/3 cases)
     for node in node_info:
@@ -57,21 +61,30 @@ def configure_mimir_values(plan, chain_config, node_info):
 
         # Ensure minimum-gas-prices is 0rune (already set in start script) and use 0rune gas-prices; send sync to capture result
         for mimir_key, mimir_value in mimir_values.items():
-            plan.print("Setting MIMIR {}={} from {}".format(mimir_key, mimir_value, validator_node))
+            plan.print("Waiting for RPC on {} before MIMIR tx".format(validator_node))
+            plan.exec(
+                service_name=validator_node,
+                recipe=ExecRecipe(
+                    command=[
+                        "/bin/sh","-lc",
+                        "for i in $(seq 1 30); do curl -sf --connect-timeout 1 --max-time 2 http://localhost:26657/health && break || sleep 1; done"
+                    ]
+                ),
+                description="Wait for CometBFT RPC health on {}".format(validator_node),
+            )
 
+            plan.print("Setting MIMIR {}={} from {}".format(mimir_key, mimir_value, validator_node))
             plan.exec(
                 service_name=validator_node,
                 recipe=ExecRecipe(
                     command=[
                         "/bin/sh", "-c",
                         "thornode tx thorchain mimir {} {} --from validator --keyring-backend test --chain-id {} --yes --broadcast-mode sync -o json --node tcp://localhost:26657 --gas-prices 0rune".format(
-                            mimir_key, mimir_value, chain_id
+                            mimir_key, mimir_value, tx_chain_id
                         )
                     ]
                 ),
                 description="Setting MIMIR {}={} from {}".format(mimir_key, mimir_value, validator_node)
             )
-            
-            # Transaction is sent with --broadcast-mode sync which waits for inclusion
 
     plan.print("✅ MIMIR configuration complete for chain {}".format(chain_name))
