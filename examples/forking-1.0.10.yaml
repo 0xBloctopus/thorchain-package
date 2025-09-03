@@ -2,10 +2,11 @@ chains:
   - name: thorchain
     type: thorchain
     participants:
-      - image: "tiljordan/thornode-forking:local"
+      - image: "tiljordan/thornode-forking:1.0.10"
         account_balance: 1000000000000000
         bond_amount: "300000000000000"
         count: 1
+    chain_id: "thorchain-1"
     mimir:
       enabled: true
       values:
@@ -19,4 +20,3 @@ chains:
       cache_size: 10000
       timeout: "60s"
       gas_cost_per_fetch: 1000
- 
