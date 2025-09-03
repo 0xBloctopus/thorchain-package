@@ -27,7 +27,7 @@ def _one_chain(plan, chain_cfg):
             account_balances.append("{}".format(participant["account_balance"]))
             if participant.get("staking", True):
                 bond_amounts.append("{}".format(participant["bond_amount"]))
-        account_balances.append("{}".format(chain_cfg["faucet"]["faucet_amount"]))
+    account_balances.append("{}".format(chain_cfg["faucet"]["faucet_amount"]))
 
     # Process prefunded accounts
     prefunded_addresses = []
@@ -286,9 +286,9 @@ def _mk_accounts_array(addrs):
 
 def _mk_balances_array(addrs, amounts):
     balances = []
-    count = 0
-    for addr in addrs:
-        balances.append({"address": addr, "coins": [{"denom": "rune", "amount": amounts[count]}]})
+    n = min(len(addrs), len(amounts))
+    for i in range(n):
+        balances.append({"address": addrs[i], "coins": [{"denom": "rune", "amount": amounts[i]}]})
     return balances
 
 
