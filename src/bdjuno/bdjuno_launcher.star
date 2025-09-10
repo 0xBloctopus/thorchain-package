@@ -25,7 +25,7 @@ def launch_postgres_service(plan, chain_name):
 
     # Upload SQL schema files to Kurtosis
     schema_files_artifact = plan.upload_files(
-        src="github.com/LZeroAnalytics/bdjuno/database/schema",
+        src="github.com/0xBloctopus/bdjuno/database/schema",
         name="{}-schema-files".format(chain_name)
     )
     postgres_service = plan.add_service(
@@ -85,7 +85,7 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
 
     # Upload Hasura metadata files to Kurtosis
     hasura_metadata_artifact = plan.upload_files(
-        src="github.com/LZeroAnalytics/bdjuno/hasura",
+        src="github.com/0xBloctopus/bdjuno/hasura",
         name="{}-hasura-metadata".format(chain_name)
     )
 
