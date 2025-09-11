@@ -20,7 +20,7 @@ def configure_mimir_values(plan, chain_config, node_info):
     forking_enabled = bool(forking_cfg.get("enabled", False))
     tx_chain_id = chain_id
     if forking_enabled:
-        tx_chain_id = "thorchain-1"
+        tx_chain_id = "thorchain"
 
 
     # Submit votes from all validators (handles 2/2 or >=2/3 cases)
@@ -79,9 +79,7 @@ def configure_mimir_values(plan, chain_config, node_info):
                 recipe=ExecRecipe(
                     command=[
                         "/bin/sh", "-lc",
-                        "for i in $(seq 1 15); do thornode tx thorchain mimir {} {} --from validator --keyring-backend test --chain-id {} --yes --broadcast-mode sync -o json --node tcp://localhost:26657 --gas-prices 0rune && exit 0; echo 'MIMIR tx failed (attempt '$i'), retrying...' 1>&2; sleep 3; done; exit 1".format(
-                            mimir_key, mimir_value, tx_chain_id
-                        )
+                        "for i in $(seq 1 12); do echo \"[mimir] attempt $i: sending tx {}={}\"; TX_OUT=$(thornode tx thorchain mimir {} {} --from validator --keyring-backend test --chain-id {} --yes --broadcast-mode sync -o json --node tcp://localhost:26657 --gas-prices 0rune 2>&1); RC=$?; echo \"$TX_OUT\"; if [ $RC -ne 0 ]; then echo \"[mimir] tx failed rc=$RC\" 1>&2; sleep 2; continue; fi; sleep 1; LCD=$(curl -s http://localhost:1317/thorchain/mimir | tr -d '\\r\\n'); echo \"[mimir] lcd: ${{LCD:0:400}}\"; echo \"$LCD\" | grep -q '\"{}\": {}' && exit 0; echo \"$LCD\" | grep -q '\"{}\": \"{}\"' && exit 0; sleep 2; done; echo \"[mimir] failed to set {} after retries\" 1>&2; exit 1".format(mimir_key, mimir_value, mimir_key, mimir_value, tx_chain_id, mimir_key, mimir_value, mimir_key, mimir_value, mimir_key)
                     ]
                 ),
                 description="Setting MIMIR {}={} from {}".format(mimir_key, mimir_value, validator_node)

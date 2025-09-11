@@ -48,6 +48,9 @@ sed -i 's/^prometheus = false/prometheus = true/' $CONFIG_FOLDER/config.toml
 sed -i 's/^prometheus_listen_addr = ":26660"/prometheus_listen_addr = "0.0.0.0:26660"/' $CONFIG_FOLDER/config.toml
 
 echo "Node configuration completed"
+echo "THORNODE_ARGS=$THORNODE_ARGS"
+echo "SEED_OPTIONS=$SEED_OPTIONS"
+echo "Start cmd: $BINARY start $SEED_OPTIONS $THORNODE_ARGS"
 
 # Start the node with seed options if provided
 if [ -n "$SEED_OPTIONS" ]; then
