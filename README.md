@@ -32,7 +32,7 @@ This package automates the deployment of complete THORChain networks through a c
 Deploy a default THORChain network:
 
 ```bash
-kurtosis run --enclave thorchain-testnet github.com/LZeroAnalytics/thorchain-package
+kurtosis run --enclave thorchain-testnet github.com/0xBloctopus/thorchain-package
 ```
 
 ### Custom Configuration
@@ -40,7 +40,7 @@ kurtosis run --enclave thorchain-testnet github.com/LZeroAnalytics/thorchain-pac
 Create a configuration file and deploy:
 
 ```bash
-kurtosis run --enclave thorchain-testnet github.com/LZeroAnalytics/thorchain-package --args-file config.yaml
+kurtosis run --enclave thorchain-testnet github.com/0xBloctopus/thorchain-package --args-file config.yaml
 ```
 
 Example minimal configuration:
@@ -138,7 +138,7 @@ Fork from mainnet state for realistic testing. Requires a forking-enabled THORNo
 ### Basic Deployment
 Use default configuration with a single validator:
 ```bash
-kurtosis run --enclave thorchain-testnet github.com/LZeroAnalytics/thorchain-package
+kurtosis run --enclave thorchain-testnet github.com/0xBloctopus/thorchain-package
 ```
 
 ### Prefunded Accounts
