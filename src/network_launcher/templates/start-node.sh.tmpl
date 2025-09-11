@@ -51,6 +51,10 @@ echo "Node configuration completed"
 echo "THORNODE_ARGS=$THORNODE_ARGS"
 echo "SEED_OPTIONS=$SEED_OPTIONS"
 echo "Start cmd: $BINARY start $SEED_OPTIONS $THORNODE_ARGS"
+echo "$BINARY start $SEED_OPTIONS $THORNODE_ARGS" >/tmp/thornode_start_cmd.txt
+
+# Small delay to ensure early logs are captured
+sleep 1
 
 # Start the node with seed options if provided
 if [ -n "$SEED_OPTIONS" ]; then
