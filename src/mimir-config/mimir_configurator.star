@@ -33,7 +33,7 @@ def configure_mimir_values(plan, chain_config, node_info):
                 recipe=ExecRecipe(
                     command=[
                         "/bin/sh", "-lc",
-                        "thornode keys show validator -a --keyring-backend test | tr -d '\n'"
+                        "thornode keys show validator -a --keyring-backend test 2>/dev/null | tail -n1 | tr -d '\n'"
                     ]
                 ),
                 description="Read validator address for funding"
