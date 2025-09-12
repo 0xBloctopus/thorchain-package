@@ -19,8 +19,6 @@ def configure_mimir_values(plan, chain_config, node_info):
     forking_cfg = chain_config.get("forking", {})
     forking_enabled = bool(forking_cfg.get("enabled", False))
     tx_chain_id = chain_id
-    if forking_enabled:
-        tx_chain_id = "thorchain"
 
 
     # Submit votes from all validators (handles 2/2 or >=2/3 cases)
