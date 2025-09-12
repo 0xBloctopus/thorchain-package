@@ -10,7 +10,7 @@ def launch_network(plan, genesis_files, parsed_args):
         thornode_args = ""
         if chain.get("forking", {}).get("enabled", False):
             forking_config = chain["forking"]
-            thornode_args = "--fork.enabled=true --fork.grpc={} --fork.chain-id={} --fork.height={} --fork.cache-enabled={} --fork.cache-size={} --fork.timeout={} --fork.gas-cost-per-fetch={} --fork.trusting-period={} --fork.max-clock-drift={}".format(
+            thornode_args = "--fork.grpc={} --fork.chain-id={} --fork.height={} --fork.cache-enabled={} --fork.cache-size={} --fork.timeout={} --fork.gas-cost-per-fetch={} --fork.trusting-period={} --fork.max-clock-drift={}".format(
                 forking_config.get("grpc", "grpc.thor.pfc.zone:443"),
                 forking_config.get("chain_id", "thorchain-mainnet-v1"),
                 forking_config.get("height", 0),
