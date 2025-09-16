@@ -1,3 +1,5 @@
+export THOR_FORK_DEBUG=1
+
 BINARY="{{ .Binary }}"
 CONFIG_FOLDER="{{ .ConfigFolder }}"
 # The Thornode *home* directory is the parent of CONFIG_FOLDER
@@ -45,6 +47,13 @@ sed -i 's/^enabled-unsafe-cors = false/enabled-unsafe-cors = true/' $CONFIG_FOLD
 
 # Configure Prometheus
 sed -i 's/^prometheus = false/prometheus = true/' $CONFIG_FOLDER/config.toml
+# Ensure CometBFT persists ABCI FinalizeBlock responses so /abci_info and /block_results work
+if ! grep -q '^discard_abci_responses' "$CONFIG_FOLDER/config.toml"; then
+  printf '\ndiscard_abci_responses = false\n' >> "$CONFIG_FOLDER/config.toml"
+else
+  sed -i 's/^discard_abci_responses = .*/discard_abci_responses = false/' "$CONFIG_FOLDER/config.toml"
+fi
+
 sed -i 's/^prometheus_listen_addr = ":26660"/prometheus_listen_addr = "0.0.0.0:26660"/' $CONFIG_FOLDER/config.toml
 
 echo "Node configuration completed"
