@@ -43,20 +43,14 @@ sed -i 's/^address = "localhost:9090"/address = "0.0.0.0:9090"/' $CONFIG_FOLDER/
 sed -i 's/^address = "tcp:\/\/localhost:1317"/address = "tcp:\/\/0.0.0.0:1317"/' $CONFIG_FOLDER/app.toml
 sed -i 's/^enabled-unsafe-cors = false/enabled-unsafe-cors = true/' $CONFIG_FOLDER/app.toml
 
-# Ensure CLI uses gRPC by default for queries
+# Ensure CLI uses gRPC by default for queries (Cosmos SDK expects grpc.address and grpc.insecure)
 CLIENT_TOML="$CONFIG_FOLDER/client.toml"
 if [ -f "$CLIENT_TOML" ]; then
-  if ! grep -q '^use-grpc' "$CLIENT_TOML" 2>/dev/null; then
-    echo 'use-grpc = true' >> "$CLIENT_TOML"
+  if ! grep -q '^grpc.address' "$CLIENT_TOML" 2>/dev/null; then
+    echo 'grpc.address = "127.0.0.1:9090"' >> "$CLIENT_TOML"
   fi
-  if ! grep -q '^grpc-addr' "$CLIENT_TOML" 2>/dev/null; then
-    echo 'grpc-addr = "127.0.0.1:9090"' >> "$CLIENT_TOML"
-  fi
-  if ! grep -q '^grpc-address' "$CLIENT_TOML" 2>/dev/null; then
-    echo 'grpc-address = "127.0.0.1:9090"' >> "$CLIENT_TOML"
-  fi
-  if ! grep -q '^grpc-insecure' "$CLIENT_TOML" 2>/dev/null; then
-    echo 'grpc-insecure = true' >> "$CLIENT_TOML"
+  if ! grep -q '^grpc.insecure' "$CLIENT_TOML" 2>/dev/null; then
+    echo 'grpc.insecure = true' >> "$CLIENT_TOML"
   fi
 fi
 
