@@ -43,6 +43,22 @@ sed -i 's/^address = "localhost:9090"/address = "0.0.0.0:9090"/' $CONFIG_FOLDER/
 sed -i 's/^address = "tcp:\/\/localhost:1317"/address = "tcp:\/\/0.0.0.0:1317"/' $CONFIG_FOLDER/app.toml
 sed -i 's/^enabled-unsafe-cors = false/enabled-unsafe-cors = true/' $CONFIG_FOLDER/app.toml
 
+# Ensure CLI uses gRPC by default and RPC points to IPv4 loopback
+CLIENT_TOML="$CONFIG_FOLDER/client.toml"
+if [ -f "$CLIENT_TOML" ]; then
+  if ! grep -q '^grpc.address' "$CLIENT_TOML" 2>/dev/null; then
+    echo 'grpc.address = "127.0.0.1:9090"' >> "$CLIENT_TOML"
+  fi
+  if ! grep -q '^grpc.insecure' "$CLIENT_TOML" 2>/dev/null; then
+    echo 'grpc.insecure = true' >> "$CLIENT_TOML"
+  fi
+  if grep -q '^node = "tcp://localhost:26657"' "$CLIENT_TOML" 2>/dev/null; then
+    sed -i 's|^node = "tcp://localhost:26657"|node = "tcp://127.0.0.1:26657"|' "$CLIENT_TOML"
+  elif ! grep -q '^node =' "$CLIENT_TOML" 2>/dev/null; then
+    echo 'node = "tcp://127.0.0.1:26657"' >> "$CLIENT_TOML"
+  fi
+fi
+
 # Configure Prometheus
 sed -i 's/^prometheus = false/prometheus = true/' $CONFIG_FOLDER/config.toml
 sed -i 's/^prometheus_listen_addr = ":26660"/prometheus_listen_addr = "0.0.0.0:26660"/' $CONFIG_FOLDER/config.toml
