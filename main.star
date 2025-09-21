@@ -63,6 +63,6 @@ def run(plan, args):
                     service_launchers[service](plan, chain_name, chain_id, forking_config, prefunded_mnemonics)
 
         # Configure MIMIR values AFTER all services are deployed
-        mimir_configurator.configure_mimir_values(plan, chain, node_info)
+        # mimir_configurator.configure_mimir_values(plan, chain, node_info)
 
     plan.print(genesis_files)
