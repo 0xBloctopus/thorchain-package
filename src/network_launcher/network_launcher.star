@@ -31,6 +31,7 @@ def launch_network(plan, genesis_files, parsed_args):
 def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_file, mnemonics):
     chain_name = chain["name"]
     participants = chain["participants"]
+    thor_env = chain.get("thor_env", {})
     
     node_info = []
     node_counter = 1
@@ -60,7 +61,8 @@ def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, g
                     mnemonic,
                     True, 
                     first_node_id, 
-                    first_node_ip
+                    first_node_ip,
+                    thor_env,
                 )
                 node_info.append({"name": node_name, "node_id": first_node_id, "ip": first_node_ip})
             else:
@@ -77,7 +79,8 @@ def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, g
                     mnemonic,
                     False, 
                     first_node_id, 
-                    first_node_ip
+                    first_node_ip,
+                    thor_env,
                 )
                 node_info.append({"name": node_name, "node_id": node_id, "ip": node_ip})
             
@@ -85,7 +88,7 @@ def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, g
     
     return node_info
 
-def start_node(plan, node_name, participant, binary, chain_id, thornode_args, config_folder, genesis_file, mnemonic, is_first_node, first_node_id, first_node_ip):
+def start_node(plan, node_name, participant, binary, chain_id, thornode_args, config_folder, genesis_file, mnemonic, is_first_node, first_node_id, first_node_ip, thor_env):
     image = participant["image"]
     min_cpu = participant.get("min_cpu", 500)
     min_memory = participant.get("min_memory", 512)
@@ -106,7 +109,7 @@ def start_node(plan, node_name, participant, binary, chain_id, thornode_args, co
         "ThorNodeArgs": thornode_args,
         "SeedOptions": seed_options,
         "Mnemonic": mnemonic,
-        "ThorEnv": chain.get("thor_env", {}),
+        "ThorEnv": thor_env,
     }
     
     # Render start script template
