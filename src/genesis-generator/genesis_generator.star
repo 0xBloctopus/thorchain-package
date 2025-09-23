@@ -107,10 +107,15 @@ def _one_chain(plan, chain_cfg):
     all_amounts = account_balances + prefunded_amounts
     
     accounts_json  = json.encode(_mk_accounts_array(all_addresses))
-    balances_json  = json.encode(_mk_balances_array(
-        all_addresses,
-        all_amounts
-    ))
+    # Build multi-denom balances map with base rune plus optional secured assets
+    coins_map = {}
+    for i, addr in enumerate(all_addresses):
+        coins_map[addr] = [{"denom": "rune", "amount": all_amounts[i]}]
+    extra_prefund = chain_cfg.get("prefund_extra_denoms", {})
+    if "validator" in extra_prefund and len(addresses) > 0:
+        for d, a in extra_prefund["validator"].items():
+            coins_map[addresses[0]].append({"denom": d, "amount": a})
+    balances_json  = json.encode(_mk_multi_balances_array(coins_map))
     contracts_json = json.encode(chain_cfg["chain_contracts"])
     nodeacc_json   = json.encode(node_accounts)
 
@@ -282,6 +287,12 @@ def _mk_accounts_array(addrs):
         "account_number": "0",
         "sequence": "0",
     } for a in addrs]
+
+def _mk_multi_balances_array(addr_to_coins):
+    balances = []
+    for addr, coins in addr_to_coins.items():
+        balances.append({"address": addr, "coins": coins})
+    return balances
 
 
 def _mk_balances_array(addrs, amounts):
