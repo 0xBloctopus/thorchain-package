@@ -100,7 +100,10 @@
   "mimir": {
     "enabled": true,
     "values": {
-      "WASMPERMISSIONLESS": 1
+      "WasmPermissionless": 1
     }
-  }
+  },
+  "extra_denoms": [],
+  "prefund_extra_denoms": {},
+  "thor_env": {}
 }
