@@ -30,6 +30,17 @@ def launch_network(plan, genesis_files, parsed_args):
 
 def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_file, mnemonics):
     chain_name = chain["name"]
+    # Validate thor_env keys/values for safe export
+    safe_env = {}
+    for k, v in thor_env.items():
+        if not re_match("^[a-zA-Z_][a-zA-Z0-9_]*$", k):
+            fail("thor_env key '{}' is not a valid shell variable name".format(k))
+        if type(v) != "string":
+            fail("thor_env value for '{}' must be a string".format(k))
+        if "'" in v:
+            fail("thor_env value for '{}' contains an unsupported single quote character".format(k))
+        safe_env[k] = v
+    thor_env = safe_env
     participants = chain["participants"]
     thor_env = chain.get("thor_env", {})
     

@@ -9,7 +9,7 @@ NODE_NAME="{{ .NodeName }}"
 # Export optional environment overrides
 {{- if .ThorEnv }}
 {{- range $k, $v := .ThorEnv }}
-export {{$k}}="{{$v}}"
+export {{$k}}='{{$v}}'
 {{- end }}
 {{- end }}
 
