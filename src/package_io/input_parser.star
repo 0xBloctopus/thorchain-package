@@ -60,6 +60,11 @@ def apply_chain_defaults(chain, defaults):
     for key, value in defaults["forking"].items():
         chain["forking"][key] = chain["forking"].get(key, value)
 
+    # Apply optional secured-asset fields
+    chain["extra_denoms"] = chain.get("extra_denoms", defaults.get("extra_denoms", []))
+    chain["prefund_extra_denoms"] = chain.get("prefund_extra_denoms", defaults.get("prefund_extra_denoms", {}))
+    chain["thor_env"] = chain.get("thor_env", defaults.get("thor_env", {}))
+
     # Apply defaults to mimir
     chain["mimir"] = chain.get("mimir", {})
     for key, value in defaults["mimir"].items():

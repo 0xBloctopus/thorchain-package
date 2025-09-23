@@ -106,6 +106,7 @@ def start_node(plan, node_name, participant, binary, chain_id, thornode_args, co
         "ThorNodeArgs": thornode_args,
         "SeedOptions": seed_options,
         "Mnemonic": mnemonic,
+        "ThorEnv": chain.get("thor_env", {}),
     }
     
     # Render start script template

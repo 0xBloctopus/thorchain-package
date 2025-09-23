@@ -6,6 +6,13 @@ SEED_OPTIONS="{{ .SeedOptions }}"
 MNEMONIC="{{ .Mnemonic }}"
 NODE_NAME="{{ .NodeName }}"
 
+# Export optional environment overrides
+{{- if .ThorEnv }}
+{{- range $k, $v := .ThorEnv }}
+export {{$k}}="{{$v}}"
+{{- end }}
+{{- end }}
+
 echo "Starting Thorchain node: $NODE_NAME"
 
 # Import the validator key
