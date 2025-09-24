@@ -137,27 +137,48 @@ def _one_chain(plan, chain_cfg):
         },
     }
     consensus_json = json.encode(consensus_obj)
-        # Ensure jq present and write patch JSONs inside container
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","apk add --no-cache jq >/dev/null 2>&1 || apt-get update >/dev/null 2>&1 && apt-get install -y jq >/dev/null 2>&1 || true"]))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","mkdir -p /tmp/patches"]))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/header.json".format(header_json.replace("'", "\\'"))]))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/consensus.json".format(consensus_json.replace("'", "\\'"))]))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/accounts.json".format(accounts_json.replace("'", "\\'"))]))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/balances.json".format(balances_json.replace("'", "\\'"))]))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/node_accounts.json".format(nodeacc_json.replace("'", "\\'"))]))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/chain_contracts.json".format(contracts_json.replace("'", "\\'"))]))
+    # Ensure jq present and write patch JSONs inside container
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","apk add --no-cache jq >/dev/null 2>&1 || apt-get update >/dev/null 2>&1 && apt-get install -y jq >/dev/null 2>&1 || true"]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","mkdir -p /tmp/patches"]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/header.json".format(header_json.replace("'", "\\'"))]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/consensus.json".format(consensus_json.replace("'", "\\'"))]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/accounts.json".format(accounts_json.replace("'", "\\'"))]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/balances.json".format(balances_json.replace("'", "\\'"))]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/node_accounts.json".format(nodeacc_json.replace("'", "\\'"))]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/chain_contracts.json".format(contracts_json.replace("'", "\\'"))]))
 
-        # Apply patches sequentially
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; appv=$(jq -r .app_version /tmp/patches/header.json); cid=$(jq -r .chain_id /tmp/patches/header.json); ih=$(jq -r .initial_height /tmp/patches/header.json); gt=$(jq -r .genesis_time /tmp/patches/header.json); jq --arg appv "$appv" --arg cid "$cid" --arg ih "$ih" --arg gt "$gt" \'.app_version=$appv | .chain_id=$cid | .initial_height=$ih | .genesis_time=$gt\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'])))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile c /tmp/patches/consensus.json \'.consensus.params.block = $c[0].block | .consensus.params.evidence = $c[0].evidence | .consensus.params.validator = $c[0].validator\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'])))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile acc /tmp/patches/accounts.json \'.app_state.auth.accounts as $A | reduce $acc[0][] as $x (.; ([$A[] | .address] | index($x.address)) as $i | if $i==null then (.app_state.auth.accounts += [$x]) else . end)\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'])))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile bal /tmp/patches/balances.json \'.app_state.bank.balances as $B | reduce $bal[0][] as $x (. ; ([$B[] | .address] | index($x.address)) as $i | if $i==null then (.app_state.bank.balances += [$x]) else (.app_state.bank.balances[$i].coins = $x.coins) end)\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'])))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile na /tmp/patches/node_accounts.json \'.app_state.thorchain.node_accounts as $N | reduce $na[0][] as $x (. ; ([$N[] | .node_address] | index($x.node_address)) as $i | if $i==null then (.app_state.thorchain.node_accounts += [$x]) else (.app_state.thorchain.node_accounts[$i] = ($N[$i] + $x)) end)\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'])))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile cc /tmp/patches/chain_contracts.json \'.app_state.thorchain.chain_contracts as $C | reduce $cc[0][] as $x (. ; ([$C[] | (.chain + ":" + .name)] | index($x.chain + ":" + $x.name)) as $i | if $i==null then (.app_state.thorchain.chain_contracts += [$x]) else (.app_state.thorchain.chain_contracts[$i] = ($C[$i] + $x)) end)\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'])))
-        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --arg bond "{}" \'.app_state.state.accounts = [{{"@type":"/cosmos.auth.v1beta1.ModuleAccount","base_account":{"account_number":"0","address":$bond,"pub_key":null,"sequence":"0"},"name":"bond","permissions":[]}}]\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'.format(BOND_MODULE_ADDR)]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'jq -r ".consensus.params.block.max_bytes" /tmp/genesis.json | head -c 32 || true']))
+    # Apply patches sequentially
+    # Header fields in four small passes
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; cid=$(jq -r .chain_id /tmp/patches/header.json); jq --arg cid "$cid" \'.chain_id=$cid\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; ih=$(jq -r .initial_height /tmp/patches/header.json); jq --arg ih "$ih" \'.initial_height=$ih\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; gt=$(jq -r .genesis_time /tmp/patches/header.json); jq --arg gt "$gt" \'.genesis_time=$gt\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; appv=$(jq -r .app_version /tmp/patches/header.json); jq --arg appv "$appv" \'.app_version=$appv\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
+    # Consensus in three passes with filter files
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.consensus.params.block = $c[0].block' > /tmp/patches/consensus_block.jq"]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.consensus.params.evidence = $c[0].evidence' > /tmp/patches/consensus_evidence.jq"]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.consensus.params.validator = $c[0].validator' > /tmp/patches/consensus_validator.jq"]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile c /tmp/patches/consensus.json -f /tmp/patches/consensus_block.jq "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile c /tmp/patches/consensus.json -f /tmp/patches/consensus_evidence.jq "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile c /tmp/patches/consensus.json -f /tmp/patches/consensus_validator.jq "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
+    # Accounts upsert via filter file
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.app_state.auth.accounts as $A | reduce $acc[0][] as $x (. ; ([$A[] | .address] | index($x.address)) as $i | if $i==null then (.app_state.auth.accounts += [$x]) else . end)' > /tmp/patches/accounts.jq"]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile acc /tmp/patches/accounts.json -f /tmp/patches/accounts.jq "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
+    # Balances upsert/overwrite via filter file
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.app_state.bank.balances as $B | reduce $bal[0][] as $x (. ; ([$B[] | .address] | index($x.address)) as $i | if $i==null then (.app_state.bank.balances += [$x]) else (.app_state.bank.balances[$i].coins = $x.coins) end)' > /tmp/patches/balances.jq"]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile bal /tmp/patches/balances.json -f /tmp/patches/balances.jq "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
+    # Node accounts upsert via filter file
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.app_state.thorchain.node_accounts as $N | reduce $na[0][] as $x (. ; ([$N[] | .node_address] | index($x.node_address)) as $i | if $i==null then (.app_state.thorchain.node_accounts += [$x]) else (.app_state.thorchain.node_accounts[$i] = ($N[$i] + $x)) end)' > /tmp/patches/node_accounts.jq"]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile na /tmp/patches/node_accounts.json -f /tmp/patches/node_accounts.jq "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
+    # Chain contracts upsert via filter file
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.app_state.thorchain.chain_contracts as $C | reduce $cc[0][] as $x (. ; ([$C[] | (.chain + \":\" + .name)] | index($x.chain + \":\" + $x.name)) as $i | if $i==null then (.app_state.thorchain.chain_contracts += [$x]) else (.app_state.thorchain.chain_contracts[$i] = ($C[$i] + $x)) end)' > /tmp/patches/chain_contracts.jq"]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile cc /tmp/patches/chain_contracts.json -f /tmp/patches/chain_contracts.jq "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
+    # Overwrite state.accounts with bond module account via filter file
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.app_state.state.accounts = [ { \"@type\":\"/cosmos.auth.v1beta1.ModuleAccount\", \"base_account\": { \"account_number\":\"0\", \"address\": $bond, \"pub_key\": null, \"sequence\":\"0\" }, \"name\":\"bond\", \"permissions\": [] } ]' > /tmp/patches/state_accounts.jq"]))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --arg bond "{}" -f /tmp/patches/state_accounts.jq "$GEN" > "$TMP" && mv "$TMP" "$GEN"'.format(BOND_MODULE_ADDR)]))
 
-        # Export patched genesis
-        gen_file = plan.store_service_files("genesis-service", ["/tmp/genesis.json"])
+    # Export patched genesis
+    gen_file = plan.store_service_files("genesis-service", "/tmp/genesis.json")
 
     plan.remove_service("genesis-service")
 
@@ -183,6 +204,8 @@ def _start_genesis_service(plan, chain_cfg, binary, config_dir):
         config=ServiceConfig(
             image=image,
             files={},
+            min_cpu=2000,
+            min_memory=8192,
         )
     )
     plan.exec("genesis-service", ExecRecipe(command=["mkdir", "-p", config_dir]))
