@@ -149,15 +149,11 @@ def _one_chain(plan, chain_cfg):
 
     plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'jq -r ".consensus.params.block.max_bytes" /tmp/genesis.json | head -c 32 || true']))
     # Apply patches sequentially
-    # Header fields in four small passes using filter files to avoid shell quoting issues
-    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.chain_id = $cid' > /tmp/patches/header_chain_id.jq"]))
-    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.initial_height = $ih' > /tmp/patches/header_initial_height.jq"]))
-    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.genesis_time = $gt' > /tmp/patches/header_genesis_time.jq"]))
-    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.app_version = $appv' > /tmp/patches/header_app_version.jq"]))
-    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; cid=$(jq -r .chain_id /tmp/patches/header.json); jq --arg cid "$cid" -f /tmp/patches/header_chain_id.jq "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
-    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; ih=$(jq -r .initial_height /tmp/patches/header.json); jq --arg ih "$ih" -f /tmp/patches/header_initial_height.jq "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
-    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; gt=$(jq -r .genesis_time /tmp/patches/header.json); jq --arg gt "$gt" -f /tmp/patches/header_genesis_time.jq "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
-    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; appv=$(jq -r .app_version /tmp/patches/header.json); jq --arg appv "$appv" -f /tmp/patches/header_app_version.jq "$GEN" > "$TMP" && mv "$TMP" "$GEN"']))
+    # Header fields via awk to avoid jq loading the large file
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'''GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; cid=$(jq -r .chain_id /tmp/patches/header.json); awk -v v="$cid" 'c==0 && $0 ~ /"chain_id"[[:space:]]*:/ { sub(/"chain_id"[[:space:]]*:[[:space:]]*"[^"]*"/, "\"chain_id\": \"" v "\""); c=1 } { print }' "$GEN" > "$TMP" && mv "$TMP" "$GEN"''']))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'''GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; ih=$(jq -r .initial_height /tmp/patches/header.json); awk -v v="$ih" 'c==0 && $0 ~ /"initial_height"[[:space:]]*:/ { sub(/"initial_height"[[:space:]]*:[[:space:]]*"[^"]*"/, "\"initial_height\": \"" v "\""); c=1 } { print }' "$GEN" > "$TMP" && mv "$TMP" "$GEN"''']))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'''GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; gt=$(jq -r .genesis_time /tmp/patches/header.json); awk -v v="$gt" 'c==0 && $0 ~ /"genesis_time"[[:space:]]*:/ { sub(/"genesis_time"[[:space:]]*:[[:space:]]*"[^"]*"/, "\"genesis_time\": \"" v "\""); c=1 } { print }' "$GEN" > "$TMP" && mv "$TMP" "$GEN"''']))
+    plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'''GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; appv=$(jq -r .app_version /tmp/patches/header.json); awk -v v="$appv" 'c==0 && $0 ~ /"app_version"[[:space:]]*:/ { sub(/"app_version"[[:space:]]*:[[:space:]]*"[^"]*"/, "\"app_version\": \"" v "\""); c=1 } { print }' "$GEN" > "$TMP" && mv "$TMP" "$GEN"''']))
     # Consensus in three passes with filter files
     plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.consensus.params.block = $c[0].block' > /tmp/patches/consensus_block.jq"]))
     plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r"printf '%s' '.consensus.params.evidence = $c[0].evidence' > /tmp/patches/consensus_evidence.jq"]))
