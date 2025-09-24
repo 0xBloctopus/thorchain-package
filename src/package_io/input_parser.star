@@ -15,6 +15,17 @@ def apply_chain_defaults(chain, defaults):
     chain["chain_contracts"] = chain.get("chain_contracts", defaults["chain_contracts"])
     chain["app_version"] = chain.get("app_version", defaults["app_version"])
     chain["reserve_amount"] = chain.get("reserve_amount", defaults["reserve_amount"])
+    # Optional config keys for patching; if omitted, default to empty
+    if "additional_accounts" not in chain:
+        chain["additional_accounts"] = []
+    if "balance_overrides" not in chain:
+        chain["balance_overrides"] = {}
+    if "thorchain_additions" not in chain:
+        chain["thorchain_additions"] = {}
+    if "node_accounts" not in chain["thorchain_additions"]:
+        chain["thorchain_additions"]["node_accounts"] = []
+    if "chain_contracts" not in chain["thorchain_additions"]:
+        chain["thorchain_additions"]["chain_contracts"] = []
 
     # Nested defaults
     chain["denom"] = chain.get("denom", {})

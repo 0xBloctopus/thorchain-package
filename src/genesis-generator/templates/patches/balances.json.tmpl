@@ -1,0 +1,6 @@
+[
+{{- $denom := .Denom -}}
+{{- range $i, $e := .Entries -}}
+  {{ if $i }},{{ end }}{ "address": "{{ $e.Address }}", "coins": [ { "denom": "{{ $denom }}", "amount": "{{ $e.Amount }}" } ] }
+{{- end -}}
+]

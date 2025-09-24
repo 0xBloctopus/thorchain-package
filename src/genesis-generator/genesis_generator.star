@@ -72,12 +72,7 @@ def _one_chain(plan, chain_cfg):
         prefunded_mnemonic_addresses = _generate_prefunded_addresses(plan, binary, prefunded_mnemonics)
         prefunded_addresses.extend(prefunded_mnemonic_addresses)
 
-    # -------------------------------------------------------------------------
-    # 2) Write the *Cosmos* accounts & balances
-    # -------------------------------------------------------------------------
-    
-    # Add validator and faucet accounts through thornode (these exist in keyring)
-    _add_balances(plan, binary, addresses, account_balances)
+    # We will patch balances via jq against existing genesis; no CLI add here
 
     # -------------------------------------------------------------------------
     # 3) Build THORChain node_accounts objects
@@ -102,77 +97,67 @@ def _one_chain(plan, chain_cfg):
     # -------------------------------------------------------------------------
     # 4) Build other dynamic lists (accounts, balances, chain contracts …)
     # -------------------------------------------------------------------------
-    # Combine validator/faucet addresses with prefunded addresses for genesis
-    all_addresses = addresses + prefunded_addresses
-    all_amounts = account_balances + prefunded_amounts
-    
-    accounts_json  = json.encode(_mk_accounts_array(all_addresses))
-    balances_json  = json.encode(_mk_balances_array(
-        all_addresses,
-        all_amounts
-    ))
-    contracts_json = json.encode(chain_cfg["chain_contracts"])
-    nodeacc_json   = json.encode(node_accounts)
+    # Build JSON fragments for jq patching
+    extra_accounts = chain_cfg.get("additional_accounts", [])
+    acct_objs = _mk_accounts_array(extra_accounts)
+    accounts_json = json.encode(acct_objs)
+
+    # Build balance overrides entries from config
+    bal_entries = []
+    for addr, amt in chain_cfg.get("balance_overrides", {}).items():
+        bal_entries.append({"address": addr, "coins": [{"denom": chain_cfg["denom"]["name"], "amount": "{}".format(amt)}]})
+    balances_json = json.encode(bal_entries)
+
+    contracts_json = json.encode(chain_cfg.get("thorchain_additions", {}).get("chain_contracts", chain_cfg.get("chain_contracts", [])))
+    nodeacc_json   = json.encode(chain_cfg.get("thorchain_additions", {}).get("node_accounts", []) + node_accounts)
 
     # -------------------------------------------------------------------------
-    # 5) Render the final template
+    # 5) Always patch existing /tmp/genesis.json inside the thornode image
     # -------------------------------------------------------------------------
-    genesis_data = {
-        # ---- header & consensus ----
-        "AppVersion":                  chain_cfg["app_version"],
-        "ChainID":                     chain_id,
-        "GenesisTime":                 _get_genesis_time(plan, chain_cfg["genesis_delay"]),
-        "InitialHeight":               chain_cfg["initial_height"],
-        "BlockMaxBytes":               chain_cfg["consensus"]["block_max_bytes"],
-        "BlockMaxGas":                 chain_cfg["consensus"]["block_max_gas"],
-        "EvidenceMaxAgeNumBlocks":     chain_cfg["consensus"]["evidence_max_age_num_blocks"],
-        "EvidenceMaxAgeDuration":      chain_cfg["consensus"]["evidence_max_age_duration"],
-        "EvidenceMaxBytes":            chain_cfg["consensus"]["evidence_max_bytes"],
-        "ValidatorPubKeyTypes":        json.encode(chain_cfg["consensus"]["validator_pub_key_types"]),
-
-        # ---- auth params ----
-        "AuthMaxMemoCharacters":       chain_cfg["modules"]["auth"]["max_memo_characters"],
-        "AuthTxSigLimit":              chain_cfg["modules"]["auth"]["tx_sig_limit"],
-        "AuthTxSizeCostPerByte":       chain_cfg["modules"]["auth"]["tx_size_cost_per_byte"],
-        "AuthSigVerifyCostEd25519":    chain_cfg["modules"]["auth"]["sig_verify_cost_ed25519"],
-        "AuthSigVerifyCostSecp256k1":  chain_cfg["modules"]["auth"]["sig_verify_cost_secp256k1"],
-
-        # ---- bank / denom ----
-        "DenomName":                   chain_cfg["denom"]["name"],
-        "DenomDisplay":                chain_cfg["denom"]["display"],
-        "DenomSymbol":                 chain_cfg["denom"]["symbol"],
-        "DenomDescription":            chain_cfg["denom"]["description"],
-
-        # ---- mint ----
-        "MintInflation":               chain_cfg["modules"]["mint"]["inflation"],
-        "MintAnnualProvisions":        chain_cfg["modules"]["mint"]["annual_provisions"],
-        "MintBlocksPerYear":           chain_cfg["modules"]["mint"]["blocks_per_year"],
-        "MintGoalBonded":              chain_cfg["modules"]["mint"]["goal_bonded"],
-        "MintInflationMax":            chain_cfg["modules"]["mint"]["inflation_max"],
-        "MintInflationMin":            chain_cfg["modules"]["mint"]["inflation_min"],
-        "MintInflationRateChange":     chain_cfg["modules"]["mint"]["inflation_rate_change"],
-
-        # ---- THORChain specifics ----
-        "Reserve":                     chain_cfg["reserve_amount"],
-        "ChainContracts":              contracts_json,
-        "NodeAccounts":                nodeacc_json,
-
-
-        # ---- module‑account & balances ----
-        "BondModuleAddr":              BOND_MODULE_ADDR,
-        "Accounts":                    accounts_json,
-        "Balances":                    balances_json,
+    header_obj = {
+        "app_version": chain_cfg["app_version"],
+        "chain_id": chain_id,
+        "initial_height": "{}".format(chain_cfg["initial_height"]),
+        "genesis_time": _get_genesis_time(plan, chain_cfg["genesis_delay"]),
     }
+    header_json = json.encode(header_obj)
 
-    plan.print(genesis_data)
+    consensus_obj = {
+        "block": {
+            "max_bytes": "{}".format(chain_cfg["consensus"]["block_max_bytes"]),
+            "max_gas": "{}".format(chain_cfg["consensus"]["block_max_gas"]),
+        },
+        "evidence": {
+            "max_age_num_blocks": "{}".format(chain_cfg["consensus"]["evidence_max_age_num_blocks"]),
+            "max_age_duration": "{}".format(chain_cfg["consensus"]["evidence_max_age_duration"]),
+            "max_bytes": "{}".format(chain_cfg["consensus"]["evidence_max_bytes"]),
+        },
+        "validator": {
+            "pub_key_types": chain_cfg["consensus"]["validator_pub_key_types"],
+        },
+    }
+    consensus_json = json.encode(consensus_obj)
+        # Ensure jq present and write patch JSONs inside container
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","apk add --no-cache jq >/dev/null 2>&1 || apt-get update >/dev/null 2>&1 && apt-get install -y jq >/dev/null 2>&1 || true"]))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","mkdir -p /tmp/patches"]))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/header.json".format(header_json.replace("'", "\\'"))]))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/consensus.json".format(consensus_json.replace("'", "\\'"))]))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/accounts.json".format(accounts_json.replace("'", "\\'"))]))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/balances.json".format(balances_json.replace("'", "\\'"))]))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/node_accounts.json".format(nodeacc_json.replace("'", "\\'"))]))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc","printf '%s' '{}' > /tmp/patches/chain_contracts.json".format(contracts_json.replace("'", "\\'"))]))
 
-    gen_file = plan.render_templates(
-        config={"genesis.json": struct(
-            template=read_file("templates/genesis_thorchain.json.tmpl"),
-            data   = genesis_data,
-        )},
-        name="{}-genesis-render".format(chain_cfg["name"]),
-    )
+        # Apply patches sequentially
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; appv=$(jq -r .app_version /tmp/patches/header.json); cid=$(jq -r .chain_id /tmp/patches/header.json); ih=$(jq -r .initial_height /tmp/patches/header.json); gt=$(jq -r .genesis_time /tmp/patches/header.json); jq --arg appv "$appv" --arg cid "$cid" --arg ih "$ih" --arg gt "$gt" \'.app_version=$appv | .chain_id=$cid | .initial_height=$ih | .genesis_time=$gt\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'])))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile c /tmp/patches/consensus.json \'.consensus.params.block = $c[0].block | .consensus.params.evidence = $c[0].evidence | .consensus.params.validator = $c[0].validator\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'])))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile acc /tmp/patches/accounts.json \'.app_state.auth.accounts as $A | reduce $acc[0][] as $x (.; ([$A[] | .address] | index($x.address)) as $i | if $i==null then (.app_state.auth.accounts += [$x]) else . end)\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'])))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile bal /tmp/patches/balances.json \'.app_state.bank.balances as $B | reduce $bal[0][] as $x (. ; ([$B[] | .address] | index($x.address)) as $i | if $i==null then (.app_state.bank.balances += [$x]) else (.app_state.bank.balances[$i].coins = $x.coins) end)\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'])))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile na /tmp/patches/node_accounts.json \'.app_state.thorchain.node_accounts as $N | reduce $na[0][] as $x (. ; ([$N[] | .node_address] | index($x.node_address)) as $i | if $i==null then (.app_state.thorchain.node_accounts += [$x]) else (.app_state.thorchain.node_accounts[$i] = ($N[$i] + $x)) end)\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'])))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --slurpfile cc /tmp/patches/chain_contracts.json \'.app_state.thorchain.chain_contracts as $C | reduce $cc[0][] as $x (. ; ([$C[] | (.chain + ":" + .name)] | index($x.chain + ":" + $x.name)) as $i | if $i==null then (.app_state.thorchain.chain_contracts += [$x]) else (.app_state.thorchain.chain_contracts[$i] = ($C[$i] + $x)) end)\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'])))
+        plan.exec("genesis-service", ExecRecipe(command=["/bin/sh","-lc",r'GEN="/tmp/genesis.json"; TMP="/tmp/genesis.tmp.json"; jq --arg bond "{}" \'.app_state.state.accounts = [{{"@type":"/cosmos.auth.v1beta1.ModuleAccount","base_account":{"account_number":"0","address":$bond,"pub_key":null,"sequence":"0"},"name":"bond","permissions":[]}}]\' "$GEN" > "$TMP" && mv "$TMP" "$GEN"'.format(BOND_MODULE_ADDR)]))
+
+        # Export patched genesis
+        gen_file = plan.store_service_files("genesis-service", ["/tmp/genesis.json"])
 
     plan.remove_service("genesis-service")
 
@@ -190,16 +175,16 @@ def _one_chain(plan, chain_cfg):
 ################################################################################
 def _start_genesis_service(plan, chain_cfg, binary, config_dir):
     """
-    Launches a tiny container with thornode binaries and an empty /tmp folder.
+    Launches a container using the participant image so /tmp/genesis.json is present.
     """
+    image = chain_cfg["participants"][0].get("image", "tiljordan/thornode-forking:1.0.14")
     plan.add_service(
         name="genesis-service",
         config=ServiceConfig(
-            image="registry.gitlab.com/thorchain/thornode:mainnet",
+            image=image,
             files={},
         )
     )
-    # ensure thornode home exists
     plan.exec("genesis-service", ExecRecipe(command=["mkdir", "-p", config_dir]))
 
 
