@@ -1,0 +1,5 @@
+[
+{{- range $i, $a := .Accounts -}}
+  {{ if $i }},{{ end }}{ "@type": "/cosmos.auth.v1beta1.BaseAccount", "address": "{{ $a }}", "pub_key": null, "account_number": "0", "sequence": "0" }
+{{- end -}}
+]

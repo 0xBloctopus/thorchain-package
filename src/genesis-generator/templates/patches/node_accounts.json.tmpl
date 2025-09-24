@@ -1,0 +1,18 @@
+[
+{{- range $i, $n := .NodeAccounts -}}
+  {{ if $i }},{{ end }}{
+    "node_address": "{{ $n.node_address }}",
+    "version": "{{ $n.version }}",
+    "status": "{{ if $n.status }}{{ $n.status }}{{ else }}Active{{ end }}",
+    "bond": "{{ if $n.bond }}{{ $n.bond }}{{ else }}0{{ end }}",
+    "active_block_height": "{{ if $n.active_block_height }}{{ $n.active_block_height }}{{ else }}0{{ end }}",
+    "bond_address": "{{ if $n.bond_address }}{{ $n.bond_address }}{{ else }}{{ $n.node_address }}{{ end }}",
+    "signer_membership": {{ if $n.signer_membership }}{{ $n.signer_membership }}{{ else }}[]{{ end }},
+    "validator_cons_pub_key": "{{ if $n.validator_cons_pub_key }}{{ $n.validator_cons_pub_key }}{{ else }}{{ end }}",
+    "pub_key_set": {
+      "secp256k1": "{{ if $n.pub_key_set.secp256k1 }}{{ $n.pub_key_set.secp256k1 }}{{ else }}{{ end }}",
+      "ed25519": "{{ if $n.pub_key_set.ed25519 }}{{ $n.pub_key_set.ed25519 }}{{ else }}{{ end }}"
+    }
+  }
+{{- end -}}
+]

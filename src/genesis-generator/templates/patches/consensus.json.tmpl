@@ -1,0 +1,14 @@
+{
+  "block": {
+    "max_bytes": "{{ .BlockMaxBytes }}",
+    "max_gas": "{{ .BlockMaxGas }}"
+  },
+  "evidence": {
+    "max_age_num_blocks": "{{ .EvidenceMaxAgeNumBlocks }}",
+    "max_age_duration": "{{ .EvidenceMaxAgeDuration }}",
+    "max_bytes": "{{ .EvidenceMaxBytes }}"
+  },
+  "validator": {
+    "pub_key_types": {{ .ValidatorPubKeyTypes }}
+  }
+}

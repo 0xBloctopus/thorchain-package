@@ -1,0 +1,28 @@
+chains:
+  - name: thor-fork
+    type: thorchain
+    chain_id: thorchain-local
+    initial_height: "0"
+    app_version: "3.7.0"
+    genesis_delay: 5
+    consensus:
+      block_max_bytes: "22020096"
+      block_max_gas: "-1"
+      evidence_max_age_num_blocks: "100000"
+      evidence_max_age_duration: "172800s"
+      evidence_max_bytes: "1048576"
+      validator_pub_key_types: ["ed25519"]
+    additional_accounts: []
+    balance_overrides: {}
+    thorchain_additions:
+      node_accounts: []
+      chain_contracts: []
+    participants:
+      - image: "tiljordan/thornode-forking:1.0.14"
+        count: 1
+        min_cpu: 1000
+        min_memory: 2048
+        staking: true
+        account_balance: "100000000000000"
+        bond_amount: "100000000000"
+    additional_services: []

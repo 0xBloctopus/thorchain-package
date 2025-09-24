@@ -1,0 +1,5 @@
+[
+{{- range $i, $c := .ChainContracts -}}
+  {{ if $i }},{{ end }}{ "chain": "{{ $c.chain }}", "name": "{{ $c.name }}", "address": "{{ $c.address }}" }
+{{- end -}}
+]
