@@ -209,7 +209,7 @@ def _start_genesis_service(plan, chain_cfg, binary, config_dir):
             image=image,
             files={},
             min_cpu=2000,
-            min_memory=8192,
+            min_memory=16384,
         )
     )
     plan.exec("genesis-service", ExecRecipe(command=["mkdir", "-p", config_dir]))
