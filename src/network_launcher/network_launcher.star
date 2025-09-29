@@ -100,6 +100,31 @@ def start_node(plan, node_name, participant, binary, chain_id, thornode_args, co
         "Mnemonic": mnemonic,
     }
     
+    # Debug: Print genesis_result structure
+    plan.print("DEBUG: genesis_result type: {}".format(type(genesis_result)))
+    plan.print("DEBUG: genesis_result keys: {}".format(list(genesis_result.keys()) if type(genesis_result) == "dict" else "not a dict"))
+    
+    # Check if this is forking mode (patch_data exists in genesis_result)
+    if type(genesis_result) == "dict" and "patch_data" in genesis_result:
+        # Forking mode - add forking-specific template data for the embedded script
+        patch_data = genesis_result["patch_data"]
+        plan.print("DEBUG: patch_data keys: {}".format(list(patch_data.keys())))
+        template_data["AppVersion"] = patch_data.get("app_version", "1.0.14")
+        template_data["GenesisTime"] = patch_data.get("genesis_time", "")
+        template_data["ChainId"] = patch_data.get("chain_id", chain_id)
+        template_data["InitialHeight"] = patch_data.get("initial_height", "1")
+        template_data["AccountBalance"] = str(participant.get("account_balance", 1000000000000000))
+        template_data["BondAmount"] = str(participant.get("bond_amount", "300000000000000"))
+        
+        # Debug: Print template data being used
+        plan.print("DEBUG: Template data for start script:")
+        plan.print("  AppVersion: {}".format(template_data["AppVersion"]))
+        plan.print("  GenesisTime: {}".format(template_data["GenesisTime"]))
+        plan.print("  ChainId: {}".format(template_data["ChainId"]))
+        plan.print("  InitialHeight: {}".format(template_data["InitialHeight"]))
+        plan.print("  AccountBalance: {}".format(template_data["AccountBalance"]))
+        plan.print("  BondAmount: {}".format(template_data["BondAmount"]))
+    
     # Render start script template
     start_script_template = plan.render_templates(
         config={
@@ -116,15 +141,19 @@ def start_node(plan, node_name, participant, binary, chain_id, thornode_args, co
     
     # Prepare files for the node - handle both template and forking modes
     files = {
-        "/tmp/scripts": start_script_template,
-        "/tmp/genesis": genesis_file
+        "/tmp/scripts": start_script_template
     }
     
-    # Check if this is forking mode (patch_data exists in genesis_result)
+    # Only add genesis file if it exists (not None for forking mode)
+    if genesis_file != None:
+        files["/tmp/genesis"] = genesis_file
+    
+    # Add forking mode files if needed
     if type(genesis_result) == "dict" and "patch_data" in genesis_result:
-        # Forking mode - add patch script and template files
+        # Forking mode - add template files (patch script is embedded in start-node.sh)
         patch_data = genesis_result["patch_data"]
-        files["/tmp/patch"] = patch_data["patch_script"]
+        plan.print("DEBUG: About to access patch_data keys for files")
+        files["/tmp/patch_script"] = patch_data["patch_script"]  # Marker file to detect forking mode
         files["/tmp/templates"] = patch_data["consensus_file"] 
         files["/tmp/state"] = patch_data["state_file"]
     

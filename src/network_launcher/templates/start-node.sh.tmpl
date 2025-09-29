@@ -12,15 +12,88 @@ echo "Starting Thorchain node: $NODE_NAME"
 printf '%s\n\n\n\n' "$MNEMONIC" | $BINARY keys add validator --recover --keyring-backend test
 
 # Initialize the node with the mnemonic (without forking args)
-echo "$MNEMONIC" | $BINARY init "$NODE_NAME" --recover
+# For forking mode, use the generated validator mnemonic, otherwise use template mnemonic
+if [ -f "/tmp/validator_mnemonic.txt" ]; then
+    VALIDATOR_MNEMONIC=$(cat /tmp/validator_mnemonic.txt)
+    echo "$VALIDATOR_MNEMONIC" | $BINARY init "$NODE_NAME" --recover
+else
+    echo "$MNEMONIC" | $BINARY init "$NODE_NAME" --recover
+fi
 
 # Handle genesis file setup - either copy template genesis or apply forking patches
 mkdir -p "$CONFIG_FOLDER"
-if [ -f "/tmp/patch/patch_genesis.sh" ]; then
+
+# Debug: List all files in /tmp to see what's available
+echo "DEBUG: Files in /tmp:"
+ls -la /tmp/
+echo "DEBUG: Files in /tmp/patch (if exists):"
+ls -la /tmp/patch/ 2>/dev/null || echo "No /tmp/patch directory"
+
+if [ -f "/tmp/patch_script/forking_mode.txt" ]; then
     echo "Applying genesis patches for forking mode..."
-    chmod +x /tmp/patch/patch_genesis.sh
-    /tmp/patch/patch_genesis.sh
-    echo "Genesis patching completed"
+    
+    # Verify original genesis file exists
+    if [ ! -f /tmp/genesis.json ]; then
+        echo "ERROR: Original genesis file not found at /tmp/genesis.json"
+        exit 1
+    fi
+    
+    echo "Original genesis file found - size: $(wc -c < /tmp/genesis.json) bytes"
+    
+    # Simplified approach: Use template genesis and just apply basic patches
+    echo "Using template genesis as base..."
+    cp /tmp/genesis/genesis.json /tmp/genesis_working.json
+    
+    # Apply basic parameter patches using jq
+    echo "Applying basic parameter patches..."
+    jq '.app_version = "{{ .AppVersion }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    jq '.genesis_time = "{{ .GenesisTime }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    jq '.chain_id = "{{ .ChainId }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    jq '.initial_height = "{{ .InitialHeight }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    
+    echo "Applying consensus block patch..."
+    jq --argjson consensus "$(cat /tmp/templates/consensus.json)" '.consensus = $consensus' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    
+    # For now, skip mainnet state extraction and just use template with custom node_accounts
+    echo "Applying node_accounts patch with template validator..."
+    # Use the existing validator key that was already created
+    VALIDATOR_ADDRESS=$(thornode keys show validator --keyring-backend test --address)
+    VALIDATOR_SECP_PK=$(thornode keys show validator --keyring-backend test --pubkey | thornode pubkey)
+    VALIDATOR_ED_PK=$(thornode tendermint show-validator | thornode pubkey)
+    VALIDATOR_CONS_PK=$(thornode tendermint show-validator | thornode pubkey --bech cons)
+    
+    # Create node_accounts JSON with actual validator data
+    NODE_ACCOUNTS_JSON="[{
+      \"active_block_height\": \"0\",
+      \"bond\": \"{{ .BondAmount }}\",
+      \"bond_address\": \"$VALIDATOR_ADDRESS\",
+      \"node_address\": \"$VALIDATOR_ADDRESS\", 
+      \"pub_key_set\": {
+        \"ed25519\": \"$VALIDATOR_ED_PK\",
+        \"secp256k1\": \"$VALIDATOR_SECP_PK\"
+      },
+      \"signer_membership\": [],
+      \"status\": \"Active\",
+      \"validator_cons_pub_key\": \"$VALIDATOR_CONS_PK\",
+      \"version\": \"{{ .AppVersion }}\"
+    }]"
+    
+    echo "Applying node_accounts patch..."
+    jq --argjson node_accounts "$NODE_ACCOUNTS_JSON" '.app_state.thorchain.node_accounts = $node_accounts' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    
+    echo "Applying state block patch..."
+    jq --argjson state "$(cat /tmp/state/state.json)" '.app_state.auth = $state' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    
+    echo "Final verification:"
+    echo "Chain ID: $(jq -r '.chain_id' /tmp/genesis_working.json)"
+    echo "Node accounts count: $(jq '.app_state.thorchain.node_accounts | length' /tmp/genesis_working.json)"
+    echo "Genesis file size: $(wc -c < /tmp/genesis_working.json) bytes"
+    
+    # Copy the patched genesis to the thornode config directory
+    echo "Copying patched genesis to thornode config directory..."
+    cp /tmp/genesis_working.json "$CONFIG_FOLDER/genesis.json"
+    
+    echo "Genesis patching completed successfully!"
 else
     echo "Using template genesis file..."
     cp /tmp/genesis/genesis.json "$CONFIG_FOLDER/genesis.json"

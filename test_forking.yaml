@@ -5,8 +5,8 @@ chains:
     app_version: "1.0.14"
     participants:
       - image: "tiljordan/thornode-forking:1.0.14"
-        account_balance: 1000000000000000
-        bond_amount: "300000000000000"
+        account_balance: 2000000000000000
+        bond_amount: "1000000000000000"
         count: 1
     forking:
       enabled: true
