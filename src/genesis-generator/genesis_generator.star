@@ -312,24 +312,17 @@ sed -i 's/"genesis_time": "[^"]*"/"genesis_time": "{{ .GenesisTime }}"/g' /tmp/g
 sed -i 's/"chain_id": "[^"]*"/"chain_id": "{{ .ChainId }}"/g' /tmp/genesis_working.json
 sed -i 's/"initial_height": "[^"]*"/"initial_height": "{{ .InitialHeight }}"/g' /tmp/genesis_working.json
 
-echo "Applying consensus block patch with text replacement..."
-# Read consensus template and escape for sed
-CONSENSUS_JSON=$(cat /tmp/templates/consensus.json | tr '\n' ' ' | sed 's/"/\\"/g')
-# Use sed to replace the consensus block directly in the text
-sed -i 's/"consensus":[^}]*}/"consensus":'"$CONSENSUS_JSON"'/g' /tmp/genesis_working.json
+echo "Applying consensus block patch using jq merge..."
+# Use jq to replace the consensus block by merging
+jq --argjson consensus "$(cat /tmp/templates/consensus.json)" '.consensus = $consensus' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
-echo "Applying node_accounts patch with text replacement..."
-# Create node_accounts JSON and prepare for sed replacement
-echo '{{ .NodeAccounts }}' > /tmp/node_accounts.json
-NODE_ACCOUNTS_JSON=$(cat /tmp/node_accounts.json | tr '\n' ' ' | sed 's/"/\\"/g')
-# Use sed to replace node_accounts array directly  
-sed -i 's/"node_accounts":\\[.*\\]/"node_accounts":'"$NODE_ACCOUNTS_JSON"'/g' /tmp/genesis_working.json
+echo "Applying node_accounts patch using jq merge..."
+# Use jq to replace node_accounts array
+jq --argjson node_accounts '{{ .NodeAccounts }}' '.app_state.thorchain.node_accounts = $node_accounts' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
-echo "Applying state block patch with text replacement..."
-# Read state template and escape for sed
-STATE_JSON=$(cat /tmp/state/state.json | tr '\n' ' ' | sed 's/"/\\"/g')
-# Use sed to replace the state block directly
-sed -i 's/"state":[^}]*}/"state":'"$STATE_JSON"'/g' /tmp/genesis_working.json
+echo "Applying state block patch using jq merge..."
+# Use jq to replace the state block by merging
+jq --argjson state "$(cat /tmp/state/state.json)" '.app_state.auth = $state' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
 echo "Copying patched genesis to final location..."
 cp /tmp/genesis_working.json /root/.thornode/config/genesis.json
