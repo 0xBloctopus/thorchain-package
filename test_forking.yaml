@@ -1,0 +1,15 @@
+chains:
+  - name: thorchain-fork-test
+    type: thorchain
+    chain_id: thorchain-fork-test
+    app_version: "1.0.14"
+    participants:
+      - image: "tiljordan/thornode-forking:1.0.14"
+        account_balance: 1000000000000000
+        bond_amount: "300000000000000"
+        count: 1
+    forking:
+      enabled: true
+      grpc: "grpc.thor.pfc.zone:443"
+      chain_id: "thorchain-1"
+      height: 22071722

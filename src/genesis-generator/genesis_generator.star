@@ -13,6 +13,13 @@ def generate_genesis_files(plan, parsed_args):
 # One‑chain pipeline
 ################################################################################
 def _one_chain(plan, chain_cfg):
+    # Check if forking mode is enabled
+    if chain_cfg.get("forking", {}).get("enabled", False):
+        return _one_chain_forking(plan, chain_cfg)
+    else:
+        return _one_chain_template(plan, chain_cfg)
+
+def _one_chain_template(plan, chain_cfg):
     binary          = "thornode"
     config_dir      = "/root/.thornode/config"
     chain_id        = chain_cfg["chain_id"]
@@ -183,6 +190,139 @@ def _one_chain(plan, chain_cfg):
         "prefunded_addresses": prefunded_addresses,
         "prefunded_mnemonics": prefunded_mnemonics,
     }
+
+def _one_chain_forking(plan, chain_cfg):
+    binary          = "thornode"
+    config_dir      = "/root/.thornode/config"
+    chain_id        = chain_cfg["chain_id"]
+    
+    # Generate validator keys as before
+    _start_genesis_service(plan, chain_cfg, binary, config_dir)
+    
+    total_count = 0
+    for participant in chain_cfg["participants"]:
+        total_count += participant["count"]
+    
+    (mnemonics, addresses, secp_pks, ed_pks, cons_pks) = _generate_validator_keys(
+        plan, binary, chain_id, total_count
+    )
+    
+    # Build node_accounts and other dynamic data
+    node_accounts = []
+    for i in range(total_count):
+        node_accounts.append({
+            "node_address": addresses[i],
+            "version": chain_cfg["app_version"],
+            "status": "Active",
+            "bond": chain_cfg["participants"][0]["bond_amount"],
+            "active_block_height": "0",
+            "bond_address": addresses[i],
+            "signer_membership": [],
+            "validator_cons_pub_key": cons_pks[i],
+            "pub_key_set": {
+                "secp256k1": secp_pks[i],
+                "ed25519": ed_pks[i],
+            },
+        })
+    
+    # Prepare template data for consensus and state blocks
+    template_data = {
+        "BlockMaxBytes": chain_cfg["consensus"]["block_max_bytes"],
+        "BlockMaxGas": chain_cfg["consensus"]["block_max_gas"],
+        "EvidenceMaxAgeNumBlocks": chain_cfg["consensus"]["evidence_max_age_num_blocks"],
+        "EvidenceMaxAgeDuration": chain_cfg["consensus"]["evidence_max_age_duration"],
+        "EvidenceMaxBytes": chain_cfg["consensus"]["evidence_max_bytes"],
+        "ValidatorPubKeyTypes": json.encode(chain_cfg["consensus"]["validator_pub_key_types"]),
+        "BondModuleAddr": BOND_MODULE_ADDR,
+    }
+    
+    # Render consensus and state templates
+    consensus_file = plan.render_templates(
+        config={"consensus.json": struct(
+            template=read_file("templates/consensus_block.json.tmpl"),
+            data=template_data,
+        )},
+        name="{}-consensus-render".format(chain_cfg["name"]),
+    )
+    
+    state_file = plan.render_templates(
+        config={"state.json": struct(
+            template=read_file("templates/state_block.json.tmpl"),
+            data=template_data,
+        )},
+        name="{}-state-render".format(chain_cfg["name"]),
+    )
+    
+    # Create the patched genesis file
+    patched_genesis = _patch_genesis_file(plan, chain_cfg, node_accounts, consensus_file, state_file)
+    
+    plan.remove_service("genesis-service")
+    
+    return {
+        "genesis_file": patched_genesis,
+        "mnemonics": mnemonics,
+        "addresses": addresses,
+        "prefunded_addresses": [],
+        "prefunded_mnemonics": [],
+    }
+
+def _patch_genesis_file(plan, chain_cfg, node_accounts, consensus_file, state_file):
+    """
+    Patch the existing genesis file from the Docker image with user parameters
+    """
+    # Start a service with the forking Docker image to access the genesis file
+    plan.add_service(
+        name="genesis-patcher",
+        config=ServiceConfig(
+            image=chain_cfg["participants"][0]["image"],  # Use the forking image
+            files={
+                "/tmp/templates": consensus_file,
+                "/tmp/state": state_file,
+            },
+        )
+    )
+    
+    # Copy the original genesis file to working location
+    plan.exec("genesis-patcher", ExecRecipe(
+        command=["cp", "/tmp/genesis.json", "/tmp/genesis_working.json"]
+    ))
+    
+    # Patch basic parameters
+    genesis_time = _get_genesis_time(plan, chain_cfg["genesis_delay"])
+    
+    patch_commands = [
+        # Update basic parameters
+        "jq '.app_version = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(chain_cfg["app_version"]),
+        "jq '.genesis_time = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(genesis_time),
+        "jq '.chain_id = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(chain_cfg["chain_id"]),
+        "jq '.initial_height = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(chain_cfg["initial_height"]),
+        
+        # Replace consensus block
+        "jq '.consensus = input' /tmp/genesis_working.json /tmp/templates/consensus.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json",
+        
+        # Replace node_accounts
+        "jq '.app_state.thorchain.node_accounts = {}' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(json.encode(node_accounts)),
+        
+        # Replace state block
+        "jq '.app_state.state = input' /tmp/genesis_working.json /tmp/state/state.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json",
+    ]
+    
+    # Execute all patch commands
+    for cmd in patch_commands:
+        plan.exec("genesis-patcher", ExecRecipe(
+            command=["/bin/sh", "-c", cmd]
+        ))
+    
+    # Create the final genesis file artifact
+    patched_genesis = plan.store_service_files(
+        service_name="genesis-patcher",
+        src="/tmp/genesis_working.json",
+        name="{}-patched-genesis".format(chain_cfg["name"])
+    )
+    
+    plan.remove_service("genesis-patcher")
+    
+    return patched_genesis
 
 
 ################################################################################
