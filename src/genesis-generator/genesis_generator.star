@@ -312,37 +312,24 @@ sed -i 's/"genesis_time": "[^"]*"/"genesis_time": "{{ .GenesisTime }}"/g' /tmp/g
 sed -i 's/"chain_id": "[^"]*"/"chain_id": "{{ .ChainId }}"/g' /tmp/genesis_working.json
 sed -i 's/"initial_height": "[^"]*"/"initial_height": "{{ .InitialHeight }}"/g' /tmp/genesis_working.json
 
-echo "Applying consensus block patch with streaming..."
-# Use jq with streaming to replace consensus block more efficiently
-jq --stream --slurpfile consensus /tmp/templates/consensus.json '
-  if length == 2 and .[0][0] == "consensus" then
-    [.[0], $consensus[0]]
-  else
-    .
-  end
-' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+echo "Applying consensus block patch with text replacement..."
+# Read consensus template and escape for sed
+CONSENSUS_JSON=$(cat /tmp/templates/consensus.json | tr '\n' ' ' | sed 's/"/\\"/g')
+# Use sed to replace the consensus block directly in the text
+sed -i 's/"consensus":{[^}]*}/"consensus":'"$CONSENSUS_JSON"'/g' /tmp/genesis_working.json
 
-echo "Applying node_accounts patch with targeted replacement..."
-# Create node_accounts JSON file first
+echo "Applying node_accounts patch with text replacement..."
+# Create node_accounts JSON and prepare for sed replacement
 echo '{{ .NodeAccounts }}' > /tmp/node_accounts.json
-# Use jq with streaming for targeted replacement
-jq --stream --slurpfile nodes /tmp/node_accounts.json '
-  if length == 2 and .[0] == ["app_state", "thorchain", "node_accounts"] then
-    [.[0], $nodes[0]]
-  else
-    .
-  end
-' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+NODE_ACCOUNTS_JSON=$(cat /tmp/node_accounts.json | tr '\n' ' ' | sed 's/"/\\"/g')
+# Use sed to replace node_accounts array directly
+sed -i 's/"node_accounts":\[[^\]]*\]/"node_accounts":'"$NODE_ACCOUNTS_JSON"'/g' /tmp/genesis_working.json
 
-echo "Applying state block patch with streaming..."
-# Use jq with streaming to replace state block
-jq --stream --slurpfile state /tmp/state/state.json '
-  if length == 2 and .[0] == ["app_state", "state"] then
-    [.[0], $state[0]]
-  else
-    .
-  end
-' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+echo "Applying state block patch with text replacement..."
+# Read state template and escape for sed
+STATE_JSON=$(cat /tmp/state/state.json | tr '\n' ' ' | sed 's/"/\\"/g')
+# Use sed to replace the state block directly
+sed -i 's/"state":{[^}]*}/"state":'"$STATE_JSON"'/g' /tmp/genesis_working.json
 
 echo "Copying patched genesis to final location..."
 cp /tmp/genesis_working.json /root/.thornode/config/genesis.json
