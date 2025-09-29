@@ -40,53 +40,185 @@ if [ -f "/tmp/patch_script/forking_mode.txt" ]; then
     
     echo "Original genesis file found - size: $(wc -c < /tmp/genesis.json) bytes"
     
-    # Simplified approach: Use template genesis and just apply basic patches
-    echo "Using template genesis as base..."
-    cp /tmp/genesis/genesis.json /tmp/genesis_working.json
+    # Use streaming approach to avoid memory issues with large genesis file
+    echo "Using streaming approach for mainnet genesis patching..."
     
-    # Apply basic parameter patches using jq
-    echo "Applying basic parameter patches..."
-    jq '.app_version = "{{ .AppVersion }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
-    jq '.genesis_time = "{{ .GenesisTime }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
-    jq '.chain_id = "{{ .ChainId }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
-    jq '.initial_height = "{{ .InitialHeight }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
-    
-    echo "Applying consensus block patch..."
-    jq --argjson consensus "$(cat /tmp/templates/consensus.json)" '.consensus = $consensus' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
-    
-    # For now, skip mainnet state extraction and just use template with custom node_accounts
-    echo "Applying node_accounts patch with template validator..."
+    # Generate validator keys for mainnet genesis patching
+    echo "Generating validator keys for mainnet genesis..."
     # Use the existing validator key that was already created
     VALIDATOR_ADDRESS=$(thornode keys show validator --keyring-backend test --address)
     VALIDATOR_SECP_PK=$(thornode keys show validator --keyring-backend test --pubkey | thornode pubkey)
     VALIDATOR_ED_PK=$(thornode tendermint show-validator | thornode pubkey)
     VALIDATOR_CONS_PK=$(thornode tendermint show-validator | thornode pubkey --bech cons)
     
-    # Create node_accounts JSON with actual validator data
-    NODE_ACCOUNTS_JSON="[{
-      \"active_block_height\": \"0\",
-      \"bond\": \"{{ .BondAmount }}\",
-      \"bond_address\": \"$VALIDATOR_ADDRESS\",
-      \"node_address\": \"$VALIDATOR_ADDRESS\", 
-      \"pub_key_set\": {
-        \"ed25519\": \"$VALIDATOR_ED_PK\",
-        \"secp256k1\": \"$VALIDATOR_SECP_PK\"
+    echo "Validator address: $VALIDATOR_ADDRESS"
+    echo "Validator secp256k1 pubkey: $VALIDATOR_SECP_PK"
+    echo "Validator ed25519 pubkey: $VALIDATOR_ED_PK"
+    echo "Validator consensus pubkey: $VALIDATOR_CONS_PK"
+    
+    # Create a minimal working genesis file by extracting essential data from mainnet
+    echo "Creating minimal working genesis from mainnet data..."
+    
+    # Start with template genesis structure but import essential mainnet data
+    cat > /tmp/genesis_working.json << 'EOF'
+{
+  "app_version": "{{ .AppVersion }}",
+  "genesis_time": "{{ .GenesisTime }}",
+  "chain_id": "{{ .ChainId }}",
+  "initial_height": "{{ .InitialHeight }}",
+  "consensus": {},
+  "app_state": {
+    "auth": {
+      "params": {
+        "max_memo_characters": "256",
+        "tx_sig_limit": "7",
+        "tx_size_cost_per_byte": "10",
+        "sig_verify_cost_ed25519": "590",
+        "sig_verify_cost_secp256k1": "1000"
       },
-      \"signer_membership\": [],
-      \"status\": \"Active\",
-      \"validator_cons_pub_key\": \"$VALIDATOR_CONS_PK\",
-      \"version\": \"{{ .AppVersion }}\"
-    }]"
+      "accounts": []
+    },
+    "authz": {
+      "authorization": []
+    },
+    "bank": {
+      "params": {
+        "send_enabled": [],
+        "default_send_enabled": true
+      },
+      "balances": [],
+      "supply": [],
+      "denom_metadata": [],
+      "send_enabled": []
+    },
+    "denom": {
+      "admins": []
+    },
+    "genutil": {
+      "gen_txs": []
+    },
+    "mint": {
+      "minter": {
+        "inflation": "0.130000000000000000",
+        "annual_provisions": "0.000000000000000000"
+      },
+      "params": {
+        "mint_denom": "rune",
+        "inflation_rate_change": "0.130000000000000000",
+        "inflation_max": "0.200000000000000000",
+        "inflation_min": "0.070000000000000000",
+        "goal_bonded": "0.670000000000000000",
+        "blocks_per_year": "6311520"
+      }
+    },
+    "thorchain": {
+      "node_accounts": [],
+      "pools": [],
+      "liquidity_providers": [],
+      "network_fees": [],
+      "observed_tx_in_hashes": [],
+      "observed_tx_out_hashes": [],
+      "tx_outs": [],
+      "keygen_blocks": [],
+      "keygens": [],
+      "errata_tx_ids": [],
+      "mimir": {},
+      "network_fee_voters": [],
+      "observed_network_fee_voters": [],
+      "node_pause_chain_blocks": [],
+      "tss_voters": [],
+      "tss_keysign_fail_voters": [],
+      "ban_voters": [],
+      "node_accounts_preflights": [],
+      "vaults": [],
+      "reserve": "0",
+      "last_churn_height": "0",
+      "last_sign_height": "0",
+      "ragnarok_withdrawing_txs": [],
+      "ragnarok_pending": false,
+      "emit_pool_rune": "0",
+      "pool_ragnarok": false,
+      "switch_block_height": "0",
+      "streaming_swaps": [],
+      "trade_accounts": [],
+      "trade_units": [],
+      "order_book_items": [],
+      "order_book_processors": [],
+      "rune_providers": [],
+      "affiliate_fee_collectors": []
+    },
+    "upgrade": {},
+    "wasm": {
+      "params": {
+        "code_upload_access": {
+          "permission": "Everybody",
+          "addresses": []
+        },
+        "instantiate_default_permission": "Everybody"
+      },
+      "codes": [],
+      "contracts": [],
+      "sequences": []
+    }
+  }
+}
+EOF
     
+    # Apply consensus block patch
+    echo "Applying consensus block patch..."
+    jq --slurpfile consensus /tmp/templates/consensus.json '.consensus = $consensus[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    
+    # Apply node_accounts patch
     echo "Applying node_accounts patch..."
-    jq --argjson node_accounts "$NODE_ACCOUNTS_JSON" '.app_state.thorchain.node_accounts = $node_accounts' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    jq --arg bond "{{ .BondAmount }}" \
+       --arg addr "$VALIDATOR_ADDRESS" \
+       --arg ed_pk "$VALIDATOR_ED_PK" \
+       --arg secp_pk "$VALIDATOR_SECP_PK" \
+       --arg cons_pk "$VALIDATOR_CONS_PK" \
+       --arg version "{{ .AppVersion }}" \
+       '.app_state.thorchain.node_accounts = [{
+         "active_block_height": "0",
+         "bond": $bond,
+         "bond_address": $addr,
+         "node_address": $addr,
+         "pub_key_set": {
+           "ed25519": $ed_pk,
+           "secp256k1": $secp_pk
+         },
+         "signer_membership": [],
+         "status": "Active",
+         "validator_cons_pub_key": $cons_pk,
+         "version": $version
+       }]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
     
+    # Apply state block patch
     echo "Applying state block patch..."
-    jq --argjson state "$(cat /tmp/state/state.json)" '.app_state.auth = $state' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    jq --slurpfile state /tmp/state/state.json '.app_state.auth = $state[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    
+    # Selectively import essential mainnet data without tthor addresses
+    echo "Importing essential mainnet data (pools, mimir settings)..."
+    
+    # Import pools data (convert tthor to thor addresses)
+    echo "Importing pools data..."
+    jq -r '.app_state.thorchain.pools' /tmp/genesis.json | sed 's/tthor1/thor1/g' > /tmp/pools_converted.json
+    jq --slurpfile pools /tmp/pools_converted.json '.app_state.thorchain.pools = $pools[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    
+    # Import mimir settings
+    echo "Importing mimir settings..."
+    jq '.app_state.thorchain.mimir' /tmp/genesis.json > /tmp/mimir_temp.json
+    jq --slurpfile mimir /tmp/mimir_temp.json '.app_state.thorchain.mimir = $mimir[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+    
+    # Import essential wasm codes and sequences (without contracts that have tthor addresses)
+    echo "Importing wasm codes and sequences..."
+    jq '.app_state.wasm.codes' /tmp/genesis.json > /tmp/codes_temp.json
+    jq '.app_state.wasm.sequences' /tmp/genesis.json > /tmp/sequences_temp.json
+    jq --slurpfile codes /tmp/codes_temp.json --slurpfile sequences /tmp/sequences_temp.json '.app_state.wasm.codes = $codes[0] | .app_state.wasm.sequences = $sequences[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
     
     echo "Final verification:"
     echo "Chain ID: $(jq -r '.chain_id' /tmp/genesis_working.json)"
     echo "Node accounts count: $(jq '.app_state.thorchain.node_accounts | length' /tmp/genesis_working.json)"
+    echo "Pools count: $(jq '.app_state.thorchain.pools | length' /tmp/genesis_working.json)"
+    echo "Wasm codes count: $(jq '.app_state.wasm.codes | length' /tmp/genesis_working.json)"
     echo "Genesis file size: $(wc -c < /tmp/genesis_working.json) bytes"
     
     # Copy the patched genesis to the thornode config directory

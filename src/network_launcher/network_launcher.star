@@ -144,9 +144,12 @@ def start_node(plan, node_name, participant, binary, chain_id, thornode_args, co
         "/tmp/scripts": start_script_template
     }
     
-    # Only add genesis file if it exists (not None for forking mode)
-    if genesis_file != None:
-        files["/tmp/genesis"] = genesis_file
+    # For forking mode, don't mount template genesis - use mainnet genesis from Docker image
+    # For template mode, mount the template genesis file
+    if type(genesis_result) != "dict" or "patch_data" not in genesis_result:
+        # Template mode - mount the genesis file
+        if genesis_file != None:
+            files["/tmp/genesis"] = genesis_file
     
     # Add forking mode files if needed
     if type(genesis_result) == "dict" and "patch_data" in genesis_result:
@@ -156,6 +159,7 @@ def start_node(plan, node_name, participant, binary, chain_id, thornode_args, co
         files["/tmp/patch_script"] = patch_data["patch_script"]  # Marker file to detect forking mode
         files["/tmp/templates"] = patch_data["consensus_file"] 
         files["/tmp/state"] = patch_data["state_file"]
+        plan.print("DEBUG: Using mainnet genesis from Docker image at /tmp/genesis.json")
     
     # Configure ports
     ports = {
