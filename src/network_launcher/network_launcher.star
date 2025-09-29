@@ -8,17 +8,8 @@ def launch_network(plan, genesis_files, parsed_args):
         
         # Build thornode_args dynamically based on forking configuration
         thornode_args = ""
-        if chain.get("forking", {}).get("enabled", False):
-            forking_config = chain["forking"]
-            thornode_args = "--fork.grpc={} --fork.chain-id={} --fork.height={} --fork.cache-enabled={} --fork.cache-size={} --fork.timeout={} --fork.gas-cost-per-fetch={}".format(
-                forking_config.get("grpc", "grpc.thor.pfc.zone:443"),
-                forking_config.get("chain_id", "thorchain-mainnet-v1"),
-                forking_config.get("height", 0),
-                str(forking_config.get("cache_enabled", True)).lower(),
-                forking_config.get("cache_size", 10000),
-                forking_config.get("timeout", "60s"),
-                forking_config.get("gas_cost_per_fetch", 1000)
-            )
+        # Note: For forking mode, we use genesis patching instead of runtime forking flags
+        # The Docker image doesn't support --fork.* flags, so we leave thornode_args empty
         
         genesis_result = genesis_files[chain_name]
         genesis_file = genesis_result["genesis_file"]
