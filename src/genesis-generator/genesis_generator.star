@@ -290,28 +290,46 @@ def _patch_genesis_file(plan, chain_cfg, node_accounts, consensus_file, state_fi
     patch_script_content = """#!/bin/bash
 set -e
 
+echo "Starting genesis patching process..."
+
+# Check if original genesis file exists
+if [ ! -f "/tmp/genesis.json" ]; then
+    echo "ERROR: Original genesis file not found at /tmp/genesis.json"
+    exit 1
+fi
+
+echo "Original genesis file found, size: $(wc -c < /tmp/genesis.json) bytes"
+
 # Copy original genesis to working location
+echo "Copying original genesis to working location..."
 cp /tmp/genesis.json /tmp/genesis_working.json
 
 # Apply patches using jq with memory-efficient operations
+echo "Applying app_version patch..."
 jq '.app_version = "{{ .AppVersion }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+
+echo "Applying genesis_time patch..."
 jq '.genesis_time = "{{ .GenesisTime }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json  
+
+echo "Applying chain_id patch..."
 jq '.chain_id = "{{ .ChainId }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+
+echo "Applying initial_height patch..."
 jq '.initial_height = "{{ .InitialHeight }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
-# Replace consensus block
+echo "Applying consensus block patch..."
 jq --slurpfile consensus /tmp/templates/consensus.json '.consensus = $consensus[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
-# Replace node_accounts  
+echo "Applying node_accounts patch..."
 jq '.app_state.thorchain.node_accounts = {{ .NodeAccounts }}' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
-# Replace state block
+echo "Applying state block patch..."
 jq --slurpfile state /tmp/state/state.json '.app_state.state = $state[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
-# Copy patched genesis to final location
+echo "Copying patched genesis to final location..."
 cp /tmp/genesis_working.json /root/.thornode/config/genesis.json
 
-echo "Genesis patching completed successfully"
+echo "Genesis patching completed successfully - final size: $(wc -c < /root/.thornode/config/genesis.json) bytes"
 """
     
     # Create the patch script as a file artifact with proper template data
