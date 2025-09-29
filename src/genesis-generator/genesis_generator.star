@@ -304,27 +304,45 @@ echo "Original genesis file found, size: $(wc -c < /tmp/genesis.json) bytes"
 echo "Copying original genesis to working location..."
 cp /tmp/genesis.json /tmp/genesis_working.json
 
-# Apply patches using jq with memory-efficient operations
-echo "Applying app_version patch..."
-jq '.app_version = "{{ .AppVersion }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+# Apply patches using memory-efficient operations with streaming
+echo "Applying basic parameter patches..."
+# Use sed for simple string replacements to avoid loading entire file into memory
+sed -i 's/"app_version": "[^"]*"/"app_version": "{{ .AppVersion }}"/g' /tmp/genesis_working.json
+sed -i 's/"genesis_time": "[^"]*"/"genesis_time": "{{ .GenesisTime }}"/g' /tmp/genesis_working.json
+sed -i 's/"chain_id": "[^"]*"/"chain_id": "{{ .ChainId }}"/g' /tmp/genesis_working.json
+sed -i 's/"initial_height": "[^"]*"/"initial_height": "{{ .InitialHeight }}"/g' /tmp/genesis_working.json
 
-echo "Applying genesis_time patch..."
-jq '.genesis_time = "{{ .GenesisTime }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json  
+echo "Applying consensus block patch with streaming..."
+# Use jq with streaming to replace consensus block more efficiently
+jq --stream --slurpfile consensus /tmp/templates/consensus.json '
+  if length == 2 and .[0][0] == "consensus" then
+    [.[0], $consensus[0]]
+  else
+    .
+  end
+' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
-echo "Applying chain_id patch..."
-jq '.chain_id = "{{ .ChainId }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+echo "Applying node_accounts patch with targeted replacement..."
+# Create node_accounts JSON file first
+echo '{{ .NodeAccounts }}' > /tmp/node_accounts.json
+# Use jq with streaming for targeted replacement
+jq --stream --slurpfile nodes /tmp/node_accounts.json '
+  if length == 2 and .[0] == ["app_state", "thorchain", "node_accounts"] then
+    [.[0], $nodes[0]]
+  else
+    .
+  end
+' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
-echo "Applying initial_height patch..."
-jq '.initial_height = "{{ .InitialHeight }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
-
-echo "Applying consensus block patch..."
-jq --slurpfile consensus /tmp/templates/consensus.json '.consensus = $consensus[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
-
-echo "Applying node_accounts patch..."
-jq '.app_state.thorchain.node_accounts = {{ .NodeAccounts }}' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
-
-echo "Applying state block patch..."
-jq --slurpfile state /tmp/state/state.json '.app_state.state = $state[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+echo "Applying state block patch with streaming..."
+# Use jq with streaming to replace state block
+jq --stream --slurpfile state /tmp/state/state.json '
+  if length == 2 and .[0] == ["app_state", "state"] then
+    [.[0], $state[0]]
+  else
+    .
+  end
+' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
 echo "Copying patched genesis to final location..."
 cp /tmp/genesis_working.json /root/.thornode/config/genesis.json
