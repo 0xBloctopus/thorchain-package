@@ -313,11 +313,11 @@ def _patch_genesis_file(plan, chain_cfg, node_accounts, consensus_file, state_fi
             command=["/bin/sh", "-c", cmd]
         ))
     
-    # Create the final genesis file artifact
+    # Create the final genesis file artifact with the expected naming pattern
     patched_genesis = plan.store_service_files(
         service_name="genesis-patcher",
         src="/tmp/genesis_working.json",
-        name="{}-patched-genesis".format(chain_cfg["name"])
+        name="{}-genesis-render".format(chain_cfg["name"])
     )
     
     plan.remove_service("genesis-patcher")
