@@ -316,20 +316,20 @@ echo "Applying consensus block patch with text replacement..."
 # Read consensus template and escape for sed
 CONSENSUS_JSON=$(cat /tmp/templates/consensus.json | tr '\n' ' ' | sed 's/"/\\"/g')
 # Use sed to replace the consensus block directly in the text
-sed -i 's/"consensus":{[^}]*}/"consensus":'"$CONSENSUS_JSON"'/g' /tmp/genesis_working.json
+sed -i 's/"consensus":\\{[^\\}]*\\}/"consensus":'"$CONSENSUS_JSON"'/g' /tmp/genesis_working.json
 
 echo "Applying node_accounts patch with text replacement..."
 # Create node_accounts JSON and prepare for sed replacement
 echo '{{ .NodeAccounts }}' > /tmp/node_accounts.json
 NODE_ACCOUNTS_JSON=$(cat /tmp/node_accounts.json | tr '\n' ' ' | sed 's/"/\\"/g')
 # Use sed to replace node_accounts array directly
-sed -i 's/"node_accounts":\[[^\]]*\]/"node_accounts":'"$NODE_ACCOUNTS_JSON"'/g' /tmp/genesis_working.json
+sed -i 's/"node_accounts":\\[[^\\]]*\\]/"node_accounts":'"$NODE_ACCOUNTS_JSON"'/g' /tmp/genesis_working.json
 
 echo "Applying state block patch with text replacement..."
 # Read state template and escape for sed
 STATE_JSON=$(cat /tmp/state/state.json | tr '\n' ' ' | sed 's/"/\\"/g')
 # Use sed to replace the state block directly
-sed -i 's/"state":{[^}]*}/"state":'"$STATE_JSON"'/g' /tmp/genesis_working.json
+sed -i 's/"state":\\{[^\\}]*\\}/"state":'"$STATE_JSON"'/g' /tmp/genesis_working.json
 
 echo "Copying patched genesis to final location..."
 cp /tmp/genesis_working.json /root/.thornode/config/genesis.json
