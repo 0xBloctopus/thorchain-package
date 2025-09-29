@@ -291,20 +291,20 @@ def _patch_genesis_file(plan, chain_cfg, node_accounts, consensus_file, state_fi
     genesis_time = _get_genesis_time(plan, chain_cfg["genesis_delay"])
     
     patch_commands = [
-        # Update basic parameters
-        "jq '.app_version = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(chain_cfg["app_version"]),
-        "jq '.genesis_time = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(genesis_time),
-        "jq '.chain_id = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(chain_cfg["chain_id"]),
-        "jq '.initial_height = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(chain_cfg["initial_height"]),
+        # Update basic parameters using streaming jq to reduce memory usage
+        "jq --stream '.app_version = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(chain_cfg["app_version"]),
+        "jq --stream '.genesis_time = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(genesis_time),
+        "jq --stream '.chain_id = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(chain_cfg["chain_id"]),
+        "jq --stream '.initial_height = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(chain_cfg["initial_height"]),
         
-        # Replace consensus block
-        "jq '.consensus = input' /tmp/genesis_working.json /tmp/templates/consensus.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json",
+        # Replace consensus block using slurp mode for smaller input
+        "jq --slurpfile consensus /tmp/templates/consensus.json '.consensus = $consensus[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json",
         
-        # Replace node_accounts
-        "jq '.app_state.thorchain.node_accounts = {}' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(json.encode(node_accounts)),
+        # Replace node_accounts using compact output
+        "jq -c '.app_state.thorchain.node_accounts = {}' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(json.encode(node_accounts)),
         
-        # Replace state block
-        "jq '.app_state.state = input' /tmp/genesis_working.json /tmp/state/state.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json",
+        # Replace state block using slurp mode
+        "jq --slurpfile state /tmp/state/state.json '.app_state.state = $state[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json",
     ]
     
     # Execute all patch commands
