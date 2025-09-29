@@ -89,7 +89,8 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
         name="{}-hasura-metadata".format(chain_name)
     )
 
-    # Retrieve the genesis file
+    # Retrieve the genesis file - handle both template and forking modes
+    # In forking mode, there's no genesis file artifact - bdjuno will use the patched genesis from the node
     genesis_file_artifact = plan.get_files_artifact(
         name = "{}-genesis-render".format(chain_name)
     )

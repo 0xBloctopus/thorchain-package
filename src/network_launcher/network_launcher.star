@@ -8,27 +8,19 @@ def launch_network(plan, genesis_files, parsed_args):
         
         # Build thornode_args dynamically based on forking configuration
         thornode_args = ""
-        if chain.get("forking", {}).get("enabled", False):
-            forking_config = chain["forking"]
-            thornode_args = "--fork.grpc={} --fork.chain-id={} --fork.height={} --fork.cache-enabled={} --fork.cache-size={} --fork.timeout={} --fork.gas-cost-per-fetch={}".format(
-                forking_config.get("grpc", "grpc.thor.pfc.zone:443"),
-                forking_config.get("chain_id", "thorchain-mainnet-v1"),
-                forking_config.get("height", 0),
-                str(forking_config.get("cache_enabled", True)).lower(),
-                forking_config.get("cache_size", 10000),
-                forking_config.get("timeout", "60s"),
-                forking_config.get("gas_cost_per_fetch", 1000)
-            )
+        # Note: For forking mode, we use genesis patching instead of runtime forking flags
+        # The Docker image doesn't support --fork.* flags, so we leave thornode_args empty
         
-        genesis_file = genesis_files[chain_name]["genesis_file"]
-        mnemonics = genesis_files[chain_name]["mnemonics"]
+        genesis_result = genesis_files[chain_name]
+        genesis_file = genesis_result["genesis_file"]
+        mnemonics = genesis_result["mnemonics"]
         
-        node_info = start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_file, mnemonics)
+        node_info = start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_result, mnemonics)
         networks[chain_name] = node_info
     
     return networks
 
-def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_file, mnemonics):
+def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_result, mnemonics):
     chain_name = chain["name"]
     participants = chain["participants"]
     
@@ -56,7 +48,7 @@ def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, g
                     chain_id,
                     thornode_args, 
                     config_folder, 
-                    genesis_file, 
+                    genesis_result, 
                     mnemonic,
                     True, 
                     first_node_id, 
@@ -73,7 +65,7 @@ def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, g
                     chain_id,
                     thornode_args, 
                     config_folder, 
-                    genesis_file, 
+                    genesis_result, 
                     mnemonic,
                     False, 
                     first_node_id, 
@@ -85,7 +77,7 @@ def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, g
     
     return node_info
 
-def start_node(plan, node_name, participant, binary, chain_id, thornode_args, config_folder, genesis_file, mnemonic, is_first_node, first_node_id, first_node_ip):
+def start_node(plan, node_name, participant, binary, chain_id, thornode_args, config_folder, genesis_result, mnemonic, is_first_node, first_node_id, first_node_ip):
     image = participant["image"]
     min_cpu = participant.get("min_cpu", 500)
     min_memory = participant.get("min_memory", 512)
@@ -108,6 +100,31 @@ def start_node(plan, node_name, participant, binary, chain_id, thornode_args, co
         "Mnemonic": mnemonic,
     }
     
+    # Debug: Print genesis_result structure
+    plan.print("DEBUG: genesis_result type: {}".format(type(genesis_result)))
+    plan.print("DEBUG: genesis_result keys: {}".format(list(genesis_result.keys()) if type(genesis_result) == "dict" else "not a dict"))
+    
+    # Check if this is forking mode (patch_data exists in genesis_result)
+    if type(genesis_result) == "dict" and "patch_data" in genesis_result:
+        # Forking mode - add forking-specific template data for the embedded script
+        patch_data = genesis_result["patch_data"]
+        plan.print("DEBUG: patch_data keys: {}".format(list(patch_data.keys())))
+        template_data["AppVersion"] = patch_data.get("app_version", "1.0.14")
+        template_data["GenesisTime"] = patch_data.get("genesis_time", "")
+        template_data["ChainId"] = patch_data.get("chain_id", chain_id)
+        template_data["InitialHeight"] = patch_data.get("initial_height", "1")
+        template_data["AccountBalance"] = str(participant.get("account_balance", 1000000000000000))
+        template_data["BondAmount"] = str(participant.get("bond_amount", "300000000000000"))
+        
+        # Debug: Print template data being used
+        plan.print("DEBUG: Template data for start script:")
+        plan.print("  AppVersion: {}".format(template_data["AppVersion"]))
+        plan.print("  GenesisTime: {}".format(template_data["GenesisTime"]))
+        plan.print("  ChainId: {}".format(template_data["ChainId"]))
+        plan.print("  InitialHeight: {}".format(template_data["InitialHeight"]))
+        plan.print("  AccountBalance: {}".format(template_data["AccountBalance"]))
+        plan.print("  BondAmount: {}".format(template_data["BondAmount"]))
+    
     # Render start script template
     start_script_template = plan.render_templates(
         config={
@@ -119,11 +136,30 @@ def start_node(plan, node_name, participant, binary, chain_id, thornode_args, co
         name="{}-start-script".format(node_name)
     )
     
-    # Prepare files for the node
+    # Extract genesis file from result
+    genesis_file = genesis_result["genesis_file"]
+    
+    # Prepare files for the node - handle both template and forking modes
     files = {
-        "/tmp/genesis": genesis_file,
         "/tmp/scripts": start_script_template
     }
+    
+    # For forking mode, don't mount template genesis - use mainnet genesis from Docker image
+    # For template mode, mount the template genesis file
+    if type(genesis_result) != "dict" or "patch_data" not in genesis_result:
+        # Template mode - mount the genesis file
+        if genesis_file != None:
+            files["/tmp/genesis"] = genesis_file
+    
+    # Add forking mode files if needed
+    if type(genesis_result) == "dict" and "patch_data" in genesis_result:
+        # Forking mode - add template files (patch script is embedded in start-node.sh)
+        patch_data = genesis_result["patch_data"]
+        plan.print("DEBUG: About to access patch_data keys for files")
+        files["/tmp/patch_script"] = patch_data["patch_script"]  # Marker file to detect forking mode
+        files["/tmp/templates"] = patch_data["consensus_file"] 
+        files["/tmp/state"] = patch_data["state_file"]
+        plan.print("DEBUG: Using mainnet genesis from Docker image at /tmp/genesis.json")
     
     # Configure ports
     ports = {
