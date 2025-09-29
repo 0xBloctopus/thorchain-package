@@ -273,7 +273,7 @@ def _patch_genesis_file(plan, chain_cfg, node_accounts, consensus_file, state_fi
     # Generate genesis time
     genesis_time = _get_genesis_time(plan, chain_cfg["genesis_delay"])
     
-    # Create a patch script that will be executed in each node container
+    # Create a patch script template that will be executed in each node container
     patch_script_content = """#!/bin/bash
 set -e
 
@@ -281,16 +281,16 @@ set -e
 cp /tmp/genesis.json /tmp/genesis_working.json
 
 # Apply patches using jq with memory-efficient operations
-jq '.app_version = "{}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
-jq '.genesis_time = "{}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json  
-jq '.chain_id = "{}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
-jq '.initial_height = "{}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+jq '.app_version = "{{ .AppVersion }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+jq '.genesis_time = "{{ .GenesisTime }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json  
+jq '.chain_id = "{{ .ChainId }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+jq '.initial_height = "{{ .InitialHeight }}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
 # Replace consensus block
 jq --slurpfile consensus /tmp/templates/consensus.json '.consensus = $consensus[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
 # Replace node_accounts  
-jq '.app_state.thorchain.node_accounts = {}' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+jq '.app_state.thorchain.node_accounts = {{ .NodeAccounts }}' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
 
 # Replace state block
 jq --slurpfile state /tmp/state/state.json '.app_state.state = $state[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
@@ -299,19 +299,21 @@ jq --slurpfile state /tmp/state/state.json '.app_state.state = $state[0]' /tmp/g
 cp /tmp/genesis_working.json /root/.thornode/config/genesis.json
 
 echo "Genesis patching completed successfully"
-""".format(
-        chain_cfg["app_version"],
-        genesis_time,
-        chain_cfg["chain_id"], 
-        chain_cfg["initial_height"],
-        json.encode(node_accounts)
-    )
+"""
     
-    # Create the patch script as a file artifact
+    # Create the patch script as a file artifact with proper template data
+    patch_script_data = {
+        "AppVersion": chain_cfg["app_version"],
+        "GenesisTime": genesis_time,
+        "ChainId": chain_cfg["chain_id"],
+        "InitialHeight": chain_cfg["initial_height"],
+        "NodeAccounts": json.encode(node_accounts)
+    }
+    
     patch_script = plan.render_templates(
         config={"patch_genesis.sh": struct(
             template=patch_script_content,
-            data={}
+            data=patch_script_data
         )},
         name="{}-genesis-patch-script".format(chain_cfg["name"])
     )
