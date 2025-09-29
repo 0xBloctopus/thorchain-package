@@ -253,13 +253,13 @@ def _one_chain_forking(plan, chain_cfg):
         name="{}-state-render".format(chain_cfg["name"]),
     )
     
-    # Create the patched genesis file
-    patched_genesis = _patch_genesis_file(plan, chain_cfg, node_accounts, consensus_file, state_file)
+    # Create the patch script and supporting files
+    patch_data = _patch_genesis_file(plan, chain_cfg, node_accounts, consensus_file, state_file)
     
     plan.remove_service("genesis-service")
     
     return {
-        "genesis_file": patched_genesis,
+        "genesis_file": patch_data,  # Contains patch script and template files
         "mnemonics": mnemonics,
         "addresses": addresses,
         "prefunded_addresses": [],
@@ -268,61 +268,62 @@ def _one_chain_forking(plan, chain_cfg):
 
 def _patch_genesis_file(plan, chain_cfg, node_accounts, consensus_file, state_file):
     """
-    Patch the existing genesis file from the Docker image with user parameters
+    Create a patch script that will be applied at runtime in each node container
     """
-    # Start a service with the forking Docker image to access the genesis file
-    plan.add_service(
-        name="genesis-patcher",
-        config=ServiceConfig(
-            image=chain_cfg["participants"][0]["image"],  # Use the forking image
-            files={
-                "/tmp/templates": consensus_file,
-                "/tmp/state": state_file,
-            },
-        )
-    )
-    
-    # Copy the original genesis file to working location
-    plan.exec("genesis-patcher", ExecRecipe(
-        command=["cp", "/tmp/genesis.json", "/tmp/genesis_working.json"]
-    ))
-    
-    # Patch basic parameters
+    # Generate genesis time
     genesis_time = _get_genesis_time(plan, chain_cfg["genesis_delay"])
     
-    patch_commands = [
-        # Update basic parameters using streaming jq to reduce memory usage
-        "jq --stream '.app_version = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(chain_cfg["app_version"]),
-        "jq --stream '.genesis_time = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(genesis_time),
-        "jq --stream '.chain_id = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(chain_cfg["chain_id"]),
-        "jq --stream '.initial_height = \"{}\"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(chain_cfg["initial_height"]),
-        
-        # Replace consensus block using slurp mode for smaller input
-        "jq --slurpfile consensus /tmp/templates/consensus.json '.consensus = $consensus[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json",
-        
-        # Replace node_accounts using compact output
-        "jq -c '.app_state.thorchain.node_accounts = {}' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json".format(json.encode(node_accounts)),
-        
-        # Replace state block using slurp mode
-        "jq --slurpfile state /tmp/state/state.json '.app_state.state = $state[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json",
-    ]
-    
-    # Execute all patch commands
-    for cmd in patch_commands:
-        plan.exec("genesis-patcher", ExecRecipe(
-            command=["/bin/sh", "-c", cmd]
-        ))
-    
-    # Create the final genesis file artifact with the expected naming pattern
-    patched_genesis = plan.store_service_files(
-        service_name="genesis-patcher",
-        src="/tmp/genesis_working.json",
-        name="{}-genesis-render".format(chain_cfg["name"])
+    # Create a patch script that will be executed in each node container
+    patch_script_content = """#!/bin/bash
+set -e
+
+# Copy original genesis to working location
+cp /tmp/genesis.json /tmp/genesis_working.json
+
+# Apply patches using jq with memory-efficient operations
+jq '.app_version = "{}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+jq '.genesis_time = "{}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json  
+jq '.chain_id = "{}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+jq '.initial_height = "{}"' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+
+# Replace consensus block
+jq --slurpfile consensus /tmp/templates/consensus.json '.consensus = $consensus[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+
+# Replace node_accounts  
+jq '.app_state.thorchain.node_accounts = {}' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+
+# Replace state block
+jq --slurpfile state /tmp/state/state.json '.app_state.state = $state[0]' /tmp/genesis_working.json > /tmp/genesis_temp.json && mv /tmp/genesis_temp.json /tmp/genesis_working.json
+
+# Copy patched genesis to final location
+cp /tmp/genesis_working.json /root/.thornode/config/genesis.json
+
+echo "Genesis patching completed successfully"
+""".format(
+        chain_cfg["app_version"],
+        genesis_time,
+        chain_cfg["chain_id"], 
+        chain_cfg["initial_height"],
+        json.encode(node_accounts)
     )
     
-    plan.remove_service("genesis-patcher")
+    # Create the patch script as a file artifact
+    patch_script = plan.render_templates(
+        config={"patch_genesis.sh": struct(
+            template=patch_script_content,
+            data={}
+        )},
+        name="{}-genesis-patch-script".format(chain_cfg["name"])
+    )
     
-    return patched_genesis
+    # Return the patch script and template files that will be used by the network launcher
+    return {
+        "patch_script": patch_script,
+        "consensus_file": consensus_file,
+        "state_file": state_file,
+        "genesis_time": genesis_time,
+        "node_accounts": node_accounts
+    }
 
 
 ################################################################################

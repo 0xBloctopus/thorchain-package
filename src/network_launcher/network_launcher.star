@@ -119,11 +119,18 @@ def start_node(plan, node_name, participant, binary, chain_id, thornode_args, co
         name="{}-start-script".format(node_name)
     )
     
-    # Prepare files for the node
-    files = {
-        "/tmp/genesis": genesis_file,
-        "/tmp/scripts": start_script_template
-    }
+    # Prepare files for the node - handle both template and forking modes
+    files = {"/tmp/scripts": start_script_template}
+    
+    # Check if this is forking mode (genesis_file contains patch data)
+    if isinstance(genesis_file, dict) and "patch_script" in genesis_file:
+        # Forking mode - add patch script and template files
+        files["/tmp/patch"] = genesis_file["patch_script"]
+        files["/tmp/templates"] = genesis_file["consensus_file"] 
+        files["/tmp/state"] = genesis_file["state_file"]
+    else:
+        # Template mode - add genesis file directly
+        files["/tmp/genesis"] = genesis_file
     
     # Configure ports
     ports = {

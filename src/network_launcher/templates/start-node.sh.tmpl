@@ -14,9 +14,17 @@ printf '%s\n\n\n\n' "$MNEMONIC" | $BINARY keys add validator --recover --keyring
 # Initialize the node with the mnemonic (without forking args)
 echo "$MNEMONIC" | $BINARY init "$NODE_NAME" --recover
 
-# Copy the genesis file again after init (in case init overwrote it)
+# Handle genesis file setup - either copy template genesis or apply forking patches
 mkdir -p "$CONFIG_FOLDER"
-cp /tmp/genesis/genesis.json "$CONFIG_FOLDER/genesis.json"
+if [ -f "/tmp/patch/patch_genesis.sh" ]; then
+    echo "Applying genesis patches for forking mode..."
+    chmod +x /tmp/patch/patch_genesis.sh
+    /tmp/patch/patch_genesis.sh
+    echo "Genesis patching completed"
+else
+    echo "Using template genesis file..."
+    cp /tmp/genesis/genesis.json "$CONFIG_FOLDER/genesis.json"
+fi
 
 # Configure node settings
 # Force minimum-gas-prices to 0rune regardless of default
