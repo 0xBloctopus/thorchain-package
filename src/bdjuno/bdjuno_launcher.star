@@ -89,10 +89,14 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
         name="{}-hasura-metadata".format(chain_name)
     )
 
-    # Retrieve the genesis file
-    genesis_file_artifact = plan.get_files_artifact(
-        name = "{}-genesis-render".format(chain_name)
-    )
+    # Retrieve the genesis file - handle both template and forking modes
+    try:
+        genesis_file_artifact = plan.get_files_artifact(
+            name = "{}-genesis-render".format(chain_name)
+        )
+    except:
+        # In forking mode, there's no genesis file artifact - bdjuno will use the patched genesis from the node
+        genesis_file_artifact = None
 
     bdjuno_start_config = {
         "GenesisFilePath": "/tmp/genesis/genesis.json",
@@ -118,6 +122,9 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
                 "actions": PortSpec(number=3000, transport_protocol="TCP", wait = None)
             },
             files = {
+                "/bdjuno/.bdjuno": bdjuno_config_artifact,
+                "/usr/local/bin/scripts": bdjuno_start_artifact,
+            } if genesis_file_artifact == None else {
                 "/bdjuno/.bdjuno": bdjuno_config_artifact,
                 "/tmp/genesis": genesis_file_artifact,
                 "/usr/local/bin/scripts": bdjuno_start_artifact,
