@@ -256,10 +256,23 @@ def _one_chain_forking(plan, chain_cfg):
     # Create the patch script and supporting files
     patch_data = _patch_genesis_file(plan, chain_cfg, node_accounts, consensus_file, state_file)
     
+    # Create a simple genesis file artifact for bdjuno compatibility
+    # In forking mode, bdjuno will copy the patched genesis from the node
+    simple_genesis_content = '{"note": "This is a placeholder - actual genesis is patched at runtime"}'
+    
+    genesis_file_artifact = plan.render_templates(
+        config={"genesis.json": struct(
+            template=simple_genesis_content,
+            data={}
+        )},
+        name="{}-genesis-render".format(chain_cfg["name"])
+    )
+    
     plan.remove_service("genesis-service")
     
     return {
-        "genesis_file": patch_data,  # Contains patch script and template files
+        "genesis_file": genesis_file_artifact,
+        "patch_data": patch_data,  # Contains patch script and template files
         "mnemonics": mnemonics,
         "addresses": addresses,
         "prefunded_addresses": [],

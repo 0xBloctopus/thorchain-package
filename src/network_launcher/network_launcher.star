@@ -20,15 +20,16 @@ def launch_network(plan, genesis_files, parsed_args):
                 forking_config.get("gas_cost_per_fetch", 1000)
             )
         
-        genesis_file = genesis_files[chain_name]["genesis_file"]
-        mnemonics = genesis_files[chain_name]["mnemonics"]
+        genesis_result = genesis_files[chain_name]
+        genesis_file = genesis_result["genesis_file"]
+        mnemonics = genesis_result["mnemonics"]
         
-        node_info = start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_file, mnemonics)
+        node_info = start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_result, mnemonics)
         networks[chain_name] = node_info
     
     return networks
 
-def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_file, mnemonics):
+def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, genesis_result, mnemonics):
     chain_name = chain["name"]
     participants = chain["participants"]
     
@@ -56,7 +57,7 @@ def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, g
                     chain_id,
                     thornode_args, 
                     config_folder, 
-                    genesis_file, 
+                    genesis_result, 
                     mnemonic,
                     True, 
                     first_node_id, 
@@ -73,7 +74,7 @@ def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, g
                     chain_id,
                     thornode_args, 
                     config_folder, 
-                    genesis_file, 
+                    genesis_result, 
                     mnemonic,
                     False, 
                     first_node_id, 
@@ -85,7 +86,7 @@ def start_network(plan, chain, binary, chain_id, config_folder, thornode_args, g
     
     return node_info
 
-def start_node(plan, node_name, participant, binary, chain_id, thornode_args, config_folder, genesis_file, mnemonic, is_first_node, first_node_id, first_node_ip):
+def start_node(plan, node_name, participant, binary, chain_id, thornode_args, config_folder, genesis_result, mnemonic, is_first_node, first_node_id, first_node_ip):
     image = participant["image"]
     min_cpu = participant.get("min_cpu", 500)
     min_memory = participant.get("min_memory", 512)
@@ -119,18 +120,22 @@ def start_node(plan, node_name, participant, binary, chain_id, thornode_args, co
         name="{}-start-script".format(node_name)
     )
     
-    # Prepare files for the node - handle both template and forking modes
-    files = {"/tmp/scripts": start_script_template}
+    # Extract genesis file from result
+    genesis_file = genesis_result["genesis_file"]
     
-    # Check if this is forking mode (genesis_file contains patch data)
-    if type(genesis_file) == "dict" and "patch_script" in genesis_file:
+    # Prepare files for the node - handle both template and forking modes
+    files = {
+        "/tmp/scripts": start_script_template,
+        "/tmp/genesis": genesis_file
+    }
+    
+    # Check if this is forking mode (patch_data exists in genesis_result)
+    if type(genesis_result) == "dict" and "patch_data" in genesis_result:
         # Forking mode - add patch script and template files
-        files["/tmp/patch"] = genesis_file["patch_script"]
-        files["/tmp/templates"] = genesis_file["consensus_file"] 
-        files["/tmp/state"] = genesis_file["state_file"]
-    else:
-        # Template mode - add genesis file directly
-        files["/tmp/genesis"] = genesis_file
+        patch_data = genesis_result["patch_data"]
+        files["/tmp/patch"] = patch_data["patch_script"]
+        files["/tmp/templates"] = patch_data["consensus_file"] 
+        files["/tmp/state"] = patch_data["state_file"]
     
     # Configure ports
     ports = {
