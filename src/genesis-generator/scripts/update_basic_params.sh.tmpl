@@ -1,0 +1,12 @@
+#!/bin/bash
+# Update basic genesis parameters: app_version, genesis_time, chain_id, initial_height
+
+GENESIS_FILE="/tmp/genesis.json"
+TEMP_FILE="/tmp/genesis_temp.json"
+
+jq '.app_version = "{{ .AppVersion }}"' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
+jq '.genesis_time = "{{ .GenesisTime }}"' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
+jq '.chain_id = "{{ .ChainID }}"' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
+jq '.initial_height = "{{ .InitialHeight }}"' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
+
+echo "Updated basic genesis parameters"
