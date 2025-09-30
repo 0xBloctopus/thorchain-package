@@ -330,11 +330,11 @@ def _modify_existing_genesis(plan, chain_cfg, genesis_data):
         command=["/bin/sh", "/tmp/finalize_genesis.sh"]
     ))
     
-    # Store the modified genesis as an artifact
+    # Store the modified genesis as an artifact (use same name as non-forking mode)
     result = plan.store_service_files(
         service_name="genesis-service",
         src="/root/.thornode/config/genesis.json",
-        name="{}-genesis-final".format(chain_name),
+        name="{}-genesis-render".format(chain_name),
     )
     
     return result
