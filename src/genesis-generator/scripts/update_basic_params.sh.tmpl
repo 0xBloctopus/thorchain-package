@@ -4,9 +4,7 @@
 GENESIS_FILE="/tmp/genesis.json"
 TEMP_FILE="/tmp/genesis_temp.json"
 
-jq '.app_version = "{{ .AppVersion }}"' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
-jq '.genesis_time = "{{ .GenesisTime }}"' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
-jq '.chain_id = "{{ .ChainID }}"' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
-jq '.initial_height = "{{ .InitialHeight }}"' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
+# Update all 4 parameters in one jq command to avoid multiple file rewrites
+jq '.app_version = "{{ .AppVersion }}" | .genesis_time = "{{ .GenesisTime }}" | .chain_id = "{{ .ChainID }}" | .initial_height = "{{ .InitialHeight }}"' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
 
 echo "Updated basic genesis parameters"
