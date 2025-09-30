@@ -74,7 +74,7 @@
   },
   "participants": [
     {
-      "image": "tiljordan/thornode-forking:1.0.13",
+      "image": "registry.gitlab.com/thorchain/thornode:mainnet",
       "account_balance": 1000000000000000,
       "bond_amount": "300000000000000",
       "count": 1,
@@ -89,6 +89,7 @@
   ],
   "forking": {
     "enabled": false,
+    "image": "tiljordan/thornode-forking:1.0.15",
     "grpc": "grpc.thor.pfc.zone:443",
     "chain_id": "thorchain-mainnet-v1",
     "height": 0,
