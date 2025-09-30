@@ -16,6 +16,9 @@ def _one_chain(plan, chain_cfg):
     binary          = "thornode"
     config_dir      = "/root/.thornode/config"
     chain_id        = chain_cfg["chain_id"]
+    
+    # Check if we're using forking mode (genesis file already exists in the image)
+    use_forking = chain_cfg.get("forking", {}).get("enabled", False)
 
     total_count = 0
     account_balances = []
@@ -73,11 +76,11 @@ def _one_chain(plan, chain_cfg):
         prefunded_addresses.extend(prefunded_mnemonic_addresses)
 
     # -------------------------------------------------------------------------
-    # 2) Write the *Cosmos* accounts & balances
+    # 2) Write the *Cosmos* accounts & balances (only for non-forking mode)
     # -------------------------------------------------------------------------
-    
-    # Add validator and faucet accounts through thornode (these exist in keyring)
-    _add_balances(plan, binary, addresses, account_balances)
+    if not use_forking:
+        # Add validator and faucet accounts through thornode (these exist in keyring)
+        _add_balances(plan, binary, addresses, account_balances)
 
     # -------------------------------------------------------------------------
     # 3) Build THORChain node_accounts objects
@@ -115,7 +118,7 @@ def _one_chain(plan, chain_cfg):
     nodeacc_json   = json.encode(node_accounts)
 
     # -------------------------------------------------------------------------
-    # 5) Render the final template
+    # 5) Generate genesis file (template or modification)
     # -------------------------------------------------------------------------
     genesis_data = {
         # ---- header & consensus ----
@@ -166,13 +169,18 @@ def _one_chain(plan, chain_cfg):
 
     plan.print(genesis_data)
 
-    gen_file = plan.render_templates(
-        config={"genesis.json": struct(
-            template=read_file("templates/genesis_thorchain.json.tmpl"),
-            data   = genesis_data,
-        )},
-        name="{}-genesis-render".format(chain_cfg["name"]),
-    )
+    if use_forking:
+        # Use genesis modification approach for forking mode
+        gen_file = _modify_existing_genesis(plan, chain_cfg, genesis_data)
+    else:
+        # Use template approach for normal mode
+        gen_file = plan.render_templates(
+            config={"genesis.json": struct(
+                template=read_file("templates/genesis_thorchain.json.tmpl"),
+                data   = genesis_data,
+            )},
+            name="{}-genesis-render".format(chain_cfg["name"]),
+        )
 
     plan.remove_service("genesis-service")
 
@@ -188,14 +196,158 @@ def _one_chain(plan, chain_cfg):
 ################################################################################
 # -------- helper functions below (unchanged unless noted) ---------
 ################################################################################
+def _modify_existing_genesis(plan, chain_cfg, genesis_data):
+    """
+    Modify an existing genesis file (for forking mode) instead of creating from template.
+    The genesis file is expected to exist at /tmp/genesis.json in the image.
+    """
+    chain_name = chain_cfg["name"]
+    
+    # Render all the template files and scripts
+    rendered_files = plan.render_templates(
+        config={
+            # Basic parameters update script
+            "update_basic_params.sh": struct(
+                template=read_file("scripts/update_basic_params.sh.tmpl"),
+                data=genesis_data,
+            ),
+            # Consensus block JSON
+            "consensus_block.json": struct(
+                template=read_file("scripts/consensus_block.json.tmpl"),
+                data=genesis_data,
+            ),
+            # Bond module account JSON
+            "bond_module_account.json": struct(
+                template=read_file("scripts/bond_module_account.json.tmpl"),
+                data=genesis_data,
+            ),
+            # Static scripts (no templating needed)
+            "update_consensus.sh": struct(
+                template=read_file("scripts/update_consensus.sh"),
+                data={},
+            ),
+            "add_accounts.sh": struct(
+                template=read_file("scripts/add_accounts.sh"),
+                data={},
+            ),
+            "update_balances.sh": struct(
+                template=read_file("scripts/update_balances.sh"),
+                data={},
+            ),
+            "replace_node_accounts.sh": struct(
+                template=read_file("scripts/replace_node_accounts.sh"),
+                data={},
+            ),
+            "update_state_accounts.sh": struct(
+                template=read_file("scripts/update_state_accounts.sh"),
+                data={},
+            ),
+            "finalize_genesis.sh": struct(
+                template=read_file("scripts/finalize_genesis.sh"),
+                data={},
+            ),
+        },
+        name="{}-genesis-scripts".format(chain_name),
+    )
+    
+    # Upload the JSON data files (accounts, balances, node_accounts)
+    json_files = plan.render_templates(
+        config={
+            "new_accounts.json": struct(
+                template=genesis_data["Accounts"],
+                data={},
+            ),
+            "new_balances.json": struct(
+                template=genesis_data["Balances"],
+                data={},
+            ),
+            "node_accounts.json": struct(
+                template=genesis_data["NodeAccounts"],
+                data={},
+            ),
+        },
+        name="{}-genesis-data".format(chain_name),
+    )
+    
+    # Upload scripts and data to genesis-service
+    plan.upload_files("genesis-service", rendered_files, "/tmp/")
+    plan.upload_files("genesis-service", json_files, "/tmp/")
+    
+    # Make scripts executable and run them in sequence
+    plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "-c", "chmod +x /tmp/*.sh"]
+    ))
+    
+    # 1. Update basic parameters
+    plan.print("Updating basic genesis parameters...")
+    plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "/tmp/update_basic_params.sh"]
+    ))
+    
+    # 2. Update consensus block
+    plan.print("Updating consensus block...")
+    plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "/tmp/update_consensus.sh"]
+    ))
+    
+    # 3. Add accounts (skip if exists)
+    plan.print("Adding accounts...")
+    plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "/tmp/add_accounts.sh"]
+    ))
+    
+    # 4. Update balances
+    plan.print("Updating balances...")
+    plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "/tmp/update_balances.sh"]
+    ))
+    
+    # 5. Replace node_accounts
+    plan.print("Replacing node_accounts...")
+    plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "/tmp/replace_node_accounts.sh"]
+    ))
+    
+    # 6. Update state accounts (bond module)
+    plan.print("Updating state accounts...")
+    plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "/tmp/update_state_accounts.sh"]
+    ))
+    
+    # 7. Finalize - move to correct location
+    plan.print("Finalizing genesis file...")
+    plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "/tmp/finalize_genesis.sh"]
+    ))
+    
+    # Store the modified genesis as an artifact
+    result = plan.store_service_files(
+        service_name="genesis-service",
+        src="/root/.thornode/config/genesis.json",
+        name="{}-genesis-final".format(chain_name),
+    )
+    
+    return result
+
+
 def _start_genesis_service(plan, chain_cfg, binary, config_dir):
     """
     Launches a tiny container with thornode binaries and an empty /tmp folder.
+    Uses forking image if in forking mode.
     """
+    use_forking = chain_cfg.get("forking", {}).get("enabled", False)
+    
+    if use_forking:
+        # Use the forking image that has genesis.json at /tmp/genesis.json
+        image = chain_cfg.get("forking", {}).get("image", "tiljordan/thornode-forking:1.0.15")
+    else:
+        # Use the default mainnet image
+        image = "registry.gitlab.com/thorchain/thornode:mainnet"
+    
     plan.add_service(
         name="genesis-service",
         config=ServiceConfig(
-            image="registry.gitlab.com/thorchain/thornode:mainnet",
+            image=image,
             files={},
         )
     )
