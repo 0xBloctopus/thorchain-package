@@ -250,28 +250,21 @@ def _modify_existing_genesis(plan, chain_cfg, genesis_data):
         name="{}-genesis-scripts".format(chain_name),
     )
     
-    # Upload the JSON data files (accounts, balances, node_accounts)
-    json_files = plan.render_templates(
-        config={
-            "new_accounts.json": struct(
-                template=genesis_data["Accounts"],
-                data={},
-            ),
-            "new_balances.json": struct(
-                template=genesis_data["Balances"],
-                data={},
-            ),
-            "node_accounts.json": struct(
-                template=genesis_data["NodeAccounts"],
-                data={},
-            ),
-        },
-        name="{}-genesis-data".format(chain_name),
-    )
+    # Write JSON data files directly using exec instead of render_templates
+    plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "-c", "cat > /tmp/new_accounts.json << 'EOF'\n{}\nEOF".format(genesis_data["Accounts"])]
+    ))
     
-    # Upload scripts and data to genesis-service
+    plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "-c", "cat > /tmp/new_balances.json << 'EOF'\n{}\nEOF".format(genesis_data["Balances"])]
+    ))
+    
+    plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "-c", "cat > /tmp/node_accounts.json << 'EOF'\n{}\nEOF".format(genesis_data["NodeAccounts"])]
+    ))
+    
+    # Upload scripts to genesis-service
     plan.upload_files("genesis-service", rendered_files, "/tmp/")
-    plan.upload_files("genesis-service", json_files, "/tmp/")
     
     # Make scripts executable and run them in sequence
     plan.exec("genesis-service", ExecRecipe(
