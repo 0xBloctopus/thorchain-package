@@ -68,6 +68,7 @@ def _one_chain(plan, chain_cfg):
         binary     = binary,
         chain_id = chain_id,
         count      = total_count,
+        chain_cfg  = chain_cfg,
     )
 
     # Generate addresses from prefunded mnemonics
@@ -365,11 +366,12 @@ def _start_genesis_service(plan, chain_cfg, binary, config_dir):
     plan.exec("genesis-service", ExecRecipe(command=["mkdir", "-p", config_dir]))
 
 
-def _generate_validator_keys(plan, binary, chain_id, count):
+def _generate_validator_keys(plan, binary, chain_id, count, chain_cfg):
     """
     Returns 5 parallel arrays (mnemonics, bech32 addresses, secp pk, ed pk, cons pk)
     """
     m, addr, secp, ed, cons = [], [], [], [], []
+    use_forking = chain_cfg.get("forking", {}).get("enabled", False)
 
     for i in range(count):
         kr_flags = "--keyring-backend test"
@@ -383,8 +385,10 @@ def _generate_validator_keys(plan, binary, chain_id, count):
         addr.append(res["extract.addr"].replace("\n", ""))
         m.append(res["extract.mnemonic"].replace("\n", ""))
 
-        thornode_flags  = "--chain-id {}".format(chain_id)
-        _init_empty_chain(plan, binary, res["extract.mnemonic"].replace("\n", ""), thornode_flags)
+        # Only init chain if not in forking mode (since genesis already exists)
+        if not use_forking:
+            thornode_flags  = "--chain-id {}".format(chain_id)
+            _init_empty_chain(plan, binary, res["extract.mnemonic"].replace("\n", ""), thornode_flags)
 
         # 2. secp256k1 pk
         pk_cmd = "{0} keys show validator{1} --pubkey {2} | {0} pubkey | tr -d '\\n'".format(binary, i, kr_flags)
