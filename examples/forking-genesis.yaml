@@ -1,5 +1,6 @@
 chains:
   - name: thorchain
+    type: thorchain
     chain_id: thorchain-localnet
     app_version: "3.11.0"
     initial_height: 0
