@@ -250,7 +250,22 @@ def _modify_existing_genesis(plan, chain_cfg, genesis_data):
         name="{}-genesis-scripts".format(chain_name),
     )
     
-    # Write JSON data files directly using exec instead of render_templates
+    # Stop and restart genesis-service with the rendered files mounted
+    plan.remove_service("genesis-service")
+    
+    # Start genesis-service with files mounted
+    image = chain_cfg.get("forking", {}).get("image", "tiljordan/thornode-forking:1.0.15")
+    plan.add_service(
+        name="genesis-service",
+        config=ServiceConfig(
+            image=image,
+            files={
+                "/tmp/scripts": rendered_files,
+            },
+        )
+    )
+    
+    # Write JSON data files directly using exec
     plan.exec("genesis-service", ExecRecipe(
         command=["/bin/sh", "-c", "cat > /tmp/new_accounts.json << 'EOF'\n{}\nEOF".format(genesis_data["Accounts"])]
     ))
@@ -263,8 +278,10 @@ def _modify_existing_genesis(plan, chain_cfg, genesis_data):
         command=["/bin/sh", "-c", "cat > /tmp/node_accounts.json << 'EOF'\n{}\nEOF".format(genesis_data["NodeAccounts"])]
     ))
     
-    # Upload scripts to genesis-service
-    plan.upload_files("genesis-service", rendered_files, "/tmp/")
+    # Copy scripts from mounted location to /tmp
+    plan.exec("genesis-service", ExecRecipe(
+        command=["/bin/sh", "-c", "cp /tmp/scripts/* /tmp/"]
+    ))
     
     # Make scripts executable and run them in sequence
     plan.exec("genesis-service", ExecRecipe(
