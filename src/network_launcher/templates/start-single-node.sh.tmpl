@@ -1,0 +1,246 @@
+#!/bin/bash
+set -e
+
+BINARY="{{ .Binary }}"
+CONFIG_FOLDER="{{ .ConfigFolder }}"
+CHAIN_ID="{{ .ChainID }}"
+APP_VERSION="{{ .AppVersion }}"
+GENESIS_TIME="{{ .GenesisTime }}"
+INITIAL_HEIGHT="{{ .InitialHeight }}"
+ACCOUNT_BALANCE="{{ .AccountBalance }}"
+BOND_AMOUNT="{{ .BondAmount }}"
+FAUCET_AMOUNT="{{ .FaucetAmount }}"
+BOND_MODULE_ADDR="{{ .BondModuleAddr }}"
+
+echo "Starting single-node THORChain setup..."
+
+# Generate validator keys
+echo "Generating validator keys..."
+VALIDATOR_OUTPUT=$($BINARY keys add validator --keyring-backend test --output json 2>&1)
+if [ $? -ne 0 ]; then
+  echo "Failed to generate validator keys: $VALIDATOR_OUTPUT"
+  exit 1
+fi
+
+VALIDATOR_ADDR=$(echo "$VALIDATOR_OUTPUT" | jq -r '.address')
+VALIDATOR_MNEMONIC=$(echo "$VALIDATOR_OUTPUT" | jq -r '.mnemonic')
+
+echo "Validator address: $VALIDATOR_ADDR"
+
+# Initialize node first to generate config files and priv_validator_key.json
+echo "$VALIDATOR_MNEMONIC" | $BINARY init thorchain-node --recover --chain-id "$CHAIN_ID"
+
+# Copy mainnet genesis from forking image (overwrite the default one created by init)
+cp /tmp/genesis.json "$CONFIG_FOLDER/genesis.json"
+
+# Get validator public keys and convert to bech32
+SECP_PK_JSON=$($BINARY keys show validator --pubkey --keyring-backend test 2>&1)
+echo "SECP public key JSON: $SECP_PK_JSON"
+
+# Convert secp256k1 public key to bech32 using temp file
+echo "$SECP_PK_JSON" > /tmp/secp_pk.json
+SECP_PK=$($BINARY pubkey < /tmp/secp_pk.json 2>&1 | tr -d '\n')
+if [ -z "$SECP_PK" ] || echo "$SECP_PK" | grep -q "Usage:"; then
+  echo "Failed to convert SECP public key to bech32"
+  exit 1
+fi
+echo "SECP bech32 PK: $SECP_PK"
+
+# Get consensus public key in two formats
+$BINARY tendermint show-validator > /tmp/cons_pk.json 2>&1
+
+# thorpub prefix for pub_key_set.ed25519
+ED_PK=$($BINARY pubkey < /tmp/cons_pk.json 2>&1 | tr -d '\n')
+if [ -z "$ED_PK" ] || echo "$ED_PK" | grep -q "Usage:"; then
+  echo "Failed to convert ed25519 public key to bech32"
+  exit 1
+fi
+
+# thorcpub prefix for validator_cons_pub_key
+CONS_PK=$($BINARY pubkey --bech cons < /tmp/cons_pk.json 2>&1 | tr -d '\n')
+if [ -z "$CONS_PK" ] || echo "$CONS_PK" | grep -q "Usage:"; then
+  echo "Failed to convert consensus public key to bech32"
+  exit 1
+fi
+
+echo "ED bech32 PK (thorpub): $ED_PK"
+echo "CONS bech32 PK (thorcpub): $CONS_PK"
+
+# Generate faucet keys
+echo "Generating faucet keys..."
+FAUCET_OUTPUT=$($BINARY keys add faucet --keyring-backend test --output json)
+FAUCET_ADDR=$(echo "$FAUCET_OUTPUT" | jq -r '.address')
+FAUCET_MNEMONIC=$(echo "$FAUCET_OUTPUT" | jq -r '.mnemonic')
+
+echo "Validator address: $VALIDATOR_ADDR"
+echo "Faucet address: $FAUCET_ADDR"
+
+# Calculate total RUNE supply
+MAINNET_RUNE_SUPPLY=42537131234170029
+TOTAL_BALANCE=$((ACCOUNT_BALANCE + FAUCET_AMOUNT))
+TOTAL_RUNE_SUPPLY=$((MAINNET_RUNE_SUPPLY + TOTAL_BALANCE))
+
+# Create node_accounts JSON
+NODE_ACCOUNTS=$(cat <<EOF
+[{
+  "active_block_height": "0",
+  "bond": "$BOND_AMOUNT",
+  "bond_address": "$VALIDATOR_ADDR",
+  "node_address": "$VALIDATOR_ADDR",
+  "pub_key_set": {
+    "ed25519": "$ED_PK",
+    "secp256k1": "$SECP_PK"
+  },
+  "signer_membership": [],
+  "status": "Active",
+  "validator_cons_pub_key": "$CONS_PK",
+  "version": "$APP_VERSION"
+}]
+EOF
+)
+
+# Create accounts JSON
+ACCOUNTS=$(cat <<EOF
+[
+  {
+    "@type": "/cosmos.auth.v1beta1.BaseAccount",
+    "account_number": "0",
+    "address": "$VALIDATOR_ADDR",
+    "pub_key": null,
+    "sequence": "0"
+  },
+  {
+    "@type": "/cosmos.auth.v1beta1.BaseAccount",
+    "account_number": "0",
+    "address": "$FAUCET_ADDR",
+    "pub_key": null,
+    "sequence": "0"
+  }
+]
+EOF
+)
+
+# Create balances JSON
+BALANCES=$(cat <<EOF
+[
+  {
+    "address": "$VALIDATOR_ADDR",
+    "coins": [{"amount": "$ACCOUNT_BALANCE", "denom": "rune"}]
+  },
+  {
+    "address": "$FAUCET_ADDR",
+    "coins": [{"amount": "$FAUCET_AMOUNT", "denom": "rune"}]
+  }
+]
+EOF
+)
+
+echo "Modifying genesis file..."
+
+# Save template data to temp files for replacement
+cat > /tmp/consensus_block.json << 'CONSENSUS_EOF'
+{{ .ConsensusBlock }}
+CONSENSUS_EOF
+
+echo "$NODE_ACCOUNTS" > /tmp/node_accounts.json
+echo "\"$TOTAL_RUNE_SUPPLY\"" > /tmp/rune_supply.txt
+
+# Use Python for reliable multi-line JSON placeholder replacement
+python3 << PYTHON_EOF
+import json
+
+# Read genesis file
+with open('$CONFIG_FOLDER/genesis.json', 'r') as f:
+    genesis_text = f.read()
+
+# Read replacement values
+with open('/tmp/consensus_block.json', 'r') as f:
+    consensus_block = f.read().strip()
+with open('/tmp/node_accounts.json', 'r') as f:
+    node_accounts = f.read().strip()
+with open('/tmp/rune_supply.txt', 'r') as f:
+    rune_supply = f.read().strip()
+
+# Replace placeholders
+genesis_text = genesis_text.replace('"__CONSENSUS_BLOCK__"', consensus_block)
+genesis_text = genesis_text.replace('"__NODE_ACCOUNTS__"', node_accounts)
+genesis_text = genesis_text.replace('"__RUNE_SUPPLY__"', rune_supply)
+
+# Write back
+with open('$CONFIG_FOLDER/genesis.json', 'w') as f:
+    f.write(genesis_text)
+PYTHON_EOF
+
+# Use jq only for adding new accounts and balances
+jq --arg app_version "$APP_VERSION" \
+   --arg genesis_time "$GENESIS_TIME" \
+   --arg chain_id "$CHAIN_ID" \
+   --arg initial_height "$INITIAL_HEIGHT" \
+   --argjson accounts "$ACCOUNTS" \
+   --argjson balances "$BALANCES" \
+   --arg bond_addr "$BOND_MODULE_ADDR" \
+   '
+   .app_version = $app_version |
+   .genesis_time = $genesis_time |
+   .chain_id = $chain_id |
+   .initial_height = $initial_height |
+   .app_state.thorchain.reserve = "22000000000000000" |
+   .app_state.auth.accounts += $accounts |
+   .app_state.auth.accounts += [{
+     "@type": "/cosmos.auth.v1beta1.ModuleAccount",
+     "base_account": {
+       "account_number": "0",
+       "address": $bond_addr,
+       "pub_key": null,
+       "sequence": "0"
+     },
+     "name": "bond",
+     "permissions": []
+   }] |
+   .app_state.bank.balances += $balances
+   ' \
+   "$CONFIG_FOLDER/genesis.json" > "$CONFIG_FOLDER/genesis_temp.json" && \
+   mv "$CONFIG_FOLDER/genesis_temp.json" "$CONFIG_FOLDER/genesis.json"
+
+echo "Genesis file prepared successfully"
+
+# Configure node settings
+echo "Configuring node..."
+
+# Set minimum gas prices
+sed -i 's/^minimum-gas-prices = ".*"/minimum-gas-prices = "0rune"/' "$CONFIG_FOLDER/app.toml"
+
+# Enable API
+sed -i 's/^enable = false/enable = true/' "$CONFIG_FOLDER/app.toml"
+sed -i 's/^swagger = false/swagger = true/' "$CONFIG_FOLDER/app.toml"
+
+# Configure consensus timeouts
+sed -i 's/^timeout_commit = "5s"/timeout_commit = "1s"/' "$CONFIG_FOLDER/config.toml"
+sed -i 's/^timeout_propose = "3s"/timeout_propose = "1s"/' "$CONFIG_FOLDER/config.toml"
+
+# Configure P2P (disable for single node)
+sed -i 's/^addr_book_strict = true/addr_book_strict = false/' "$CONFIG_FOLDER/config.toml"
+sed -i 's/^pex = true/pex = false/' "$CONFIG_FOLDER/config.toml"
+sed -i 's/^persistent_peers = ".*"/persistent_peers = ""/' "$CONFIG_FOLDER/config.toml"
+sed -i 's/^seeds = ".*"/seeds = ""/' "$CONFIG_FOLDER/config.toml"
+
+# Configure RPC
+sed -i 's/^laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/' "$CONFIG_FOLDER/config.toml"
+sed -i 's/^cors_allowed_origins = \[\]/cors_allowed_origins = ["*"]/' "$CONFIG_FOLDER/config.toml"
+
+# Configure gRPC
+sed -i 's/^address = "localhost:9090"/address = "0.0.0.0:9090"/' "$CONFIG_FOLDER/app.toml"
+
+# Configure API
+sed -i 's/^address = "tcp:\/\/localhost:1317"/address = "tcp:\/\/0.0.0.0:1317"/' "$CONFIG_FOLDER/app.toml"
+sed -i 's/^enabled-unsafe-cors = false/enabled-unsafe-cors = true/' "$CONFIG_FOLDER/app.toml"
+
+# Configure Prometheus
+sed -i 's/^prometheus = false/prometheus = true/' "$CONFIG_FOLDER/config.toml"
+sed -i 's/^prometheus_listen_addr = ":26660"/prometheus_listen_addr = "0.0.0.0:26660"/' "$CONFIG_FOLDER/config.toml"
+
+echo "Node configured successfully"
+echo "Starting THORNode..."
+
+# Start the node
+exec printf 'validator\nTestPassword!\n' | $BINARY start

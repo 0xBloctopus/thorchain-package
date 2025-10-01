@@ -1,13 +1,13 @@
 def launch_bdjuno(plan, chain_name):
     postgres_service = launch_postgres_service(plan, chain_name)
 
-    # Get first node
-    first_node = plan.get_service(
-        name = "{}-node-1".format(chain_name)
+    # Get the single node
+    node = plan.get_service(
+        name = "{}-node".format(chain_name)
     )
 
     # Launch the bdjuno service
-    bdjuno_service, hasura_metadata_artifact = launch_bdjuno_service(plan, postgres_service, first_node, chain_name)
+    bdjuno_service, hasura_metadata_artifact = launch_bdjuno_service(plan, postgres_service, node, chain_name)
 
     # Launch hasura service
     hasura_service = launch_hasura_service(plan, postgres_service, chain_name, hasura_metadata_artifact)
@@ -16,7 +16,7 @@ def launch_bdjuno(plan, chain_name):
     big_dipper_service = launch_big_dipper(plan, chain_name)
 
     # Launch nginx reverse proxy to access explorer
-    launch_nginx(plan, big_dipper_service, hasura_service, first_node, chain_name)
+    launch_nginx(plan, big_dipper_service, hasura_service, node, chain_name)
 
     plan.print("BdJuno and Hasura started successfully")
 
@@ -89,13 +89,10 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
         name="{}-hasura-metadata".format(chain_name)
     )
 
-    # Retrieve the genesis file
-    genesis_file_artifact = plan.get_files_artifact(
-        name = "{}-genesis-render".format(chain_name)
-    )
-
+    # Configure bdjuno to fetch genesis from node RPC
+    node_rpc = "http://{}:{}".format(node_service.ip_address, node_service.ports["rpc"].number)
     bdjuno_start_config = {
-        "GenesisFilePath": "/tmp/genesis/genesis.json",
+        "NodeRPC": node_rpc,
         "BdjunoHome": "/bdjuno/.bdjuno"
     }
 
@@ -119,7 +116,6 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
             },
             files = {
                 "/bdjuno/.bdjuno": bdjuno_config_artifact,
-                "/tmp/genesis": genesis_file_artifact,
                 "/usr/local/bin/scripts": bdjuno_start_artifact,
             },
             cmd = ["/bin/sh", "/usr/local/bin/scripts/start_bdjuno.sh"],
