@@ -124,33 +124,14 @@ EOF
 
 echo "Modifying genesis file..."
 
-# Use Python for reliable multi-line JSON replacement
-python3 -c "
-import json
-import sys
-
-# Read genesis
-with open('$CONFIG_FOLDER/genesis.json', 'r') as f:
-    genesis_text = f.read()
-
-# Replace placeholders
-consensus = '''{{ .ConsensusBlock }}'''
-node_accounts = '''$NODE_ACCOUNTS'''
-
-genesis_text = genesis_text.replace('\"__CONSENSUS_BLOCK__\"', consensus)
-genesis_text = genesis_text.replace('\"__NODE_ACCOUNTS__\"', node_accounts)
-genesis_text = genesis_text.replace('\"__RUNE_SUPPLY__\"', str($TOTAL_RUNE_SUPPLY))
-
-# Write back
-with open('$CONFIG_FOLDER/genesis.json', 'w') as f:
-    f.write(genesis_text)
-"
-
-# Use jq only for adding new accounts and balances (faster than multiple sed operations)
+# Use single jq operation for all genesis modifications
 jq --arg app_version "$APP_VERSION" \
    --arg genesis_time "$GENESIS_TIME" \
    --arg chain_id "$CHAIN_ID" \
    --arg initial_height "$INITIAL_HEIGHT" \
+   --argjson consensus '{{ .ConsensusBlock }}' \
+   --argjson node_accounts "$NODE_ACCOUNTS" \
+   --arg supply "$TOTAL_RUNE_SUPPLY" \
    --argjson accounts "$ACCOUNTS" \
    --argjson balances "$BALANCES" \
    --arg bond_addr "$BOND_MODULE_ADDR" \
@@ -159,6 +140,10 @@ jq --arg app_version "$APP_VERSION" \
    .genesis_time = $genesis_time |
    .chain_id = $chain_id |
    .initial_height = $initial_height |
+   .consensus = $consensus |
+   .app_state.thorchain.node_accounts = $node_accounts |
+   .app_state.bank.supply = [{"denom": "rune", "amount": $supply}] |
+   .app_state.thorchain.reserve = "22000000000000000" |
    .app_state.auth.accounts += $accounts |
    .app_state.auth.accounts += [{
      "@type": "/cosmos.auth.v1beta1.ModuleAccount",
@@ -171,8 +156,7 @@ jq --arg app_version "$APP_VERSION" \
      "name": "bond",
      "permissions": []
    }] |
-   .app_state.bank.balances += $balances |
-   .app_state.thorchain.reserve = "22000000000000000"
+   .app_state.bank.balances += $balances
    ' \
    "$CONFIG_FOLDER/genesis.json" > "$CONFIG_FOLDER/genesis_temp.json" && \
    mv "$CONFIG_FOLDER/genesis_temp.json" "$CONFIG_FOLDER/genesis.json"
