@@ -46,13 +46,15 @@ if [ -z "$SECP_PK" ] || echo "$SECP_PK" | grep -q "Usage:"; then
 fi
 echo "SECP bech32 PK: $SECP_PK"
 
-# Get consensus public key and convert to bech32 with thorpub prefix (not thorcpub)
+# Get consensus public key and convert to bech32, then fix prefix
 $BINARY tendermint show-validator > /tmp/cons_pk.json 2>&1
-CONS_PK=$($BINARY pubkey < /tmp/cons_pk.json 2>&1 | tr -d '\n')
-if [ -z "$CONS_PK" ] || echo "$CONS_PK" | grep -q "Usage:"; then
+CONS_PK_RAW=$($BINARY pubkey < /tmp/cons_pk.json 2>&1 | tr -d '\n')
+if [ -z "$CONS_PK_RAW" ] || echo "$CONS_PK_RAW" | grep -q "Usage:"; then
   echo "Failed to convert consensus public key to bech32"
   exit 1
 fi
+# Replace thorcpub prefix with thorpub (genesis expects thorpub for consensus keys)
+CONS_PK=$(echo "$CONS_PK_RAW" | sed 's/^thorcpub/thorpub/')
 ED_PK="$CONS_PK"
 
 echo "ED bech32 PK: $ED_PK"
