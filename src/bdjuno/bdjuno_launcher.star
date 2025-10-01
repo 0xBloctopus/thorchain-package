@@ -89,13 +89,10 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
         name="{}-hasura-metadata".format(chain_name)
     )
 
-    # Retrieve the genesis file
-    genesis_file_artifact = plan.get_files_artifact(
-        name = "{}-genesis-render".format(chain_name)
-    )
-
+    # Configure bdjuno to fetch genesis from node RPC
+    node_rpc = "http://{}:{}".format(node_service.ip_address, node_service.ports["rpc"].number)
     bdjuno_start_config = {
-        "GenesisFilePath": "/tmp/genesis/genesis.json",
+        "NodeRPC": node_rpc,
         "BdjunoHome": "/bdjuno/.bdjuno"
     }
 
@@ -119,7 +116,6 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
             },
             files = {
                 "/bdjuno/.bdjuno": bdjuno_config_artifact,
-                "/tmp/genesis": genesis_file_artifact,
                 "/usr/local/bin/scripts": bdjuno_start_artifact,
             },
             cmd = ["/bin/sh", "/usr/local/bin/scripts/start_bdjuno.sh"],
