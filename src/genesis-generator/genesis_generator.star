@@ -217,11 +217,6 @@ def _modify_existing_genesis(plan, chain_cfg, genesis_data):
                 template=read_file("scripts/consensus_block.json.tmpl"),
                 data=genesis_data,
             ),
-            # Bond module account JSON
-            "bond_module_account.json": struct(
-                template=read_file("scripts/bond_module_account.json.tmpl"),
-                data=genesis_data,
-            ),
             # Static scripts (no templating needed)
             "update_consensus.sh": struct(
                 template=read_file("scripts/update_consensus.sh"),
@@ -237,10 +232,6 @@ def _modify_existing_genesis(plan, chain_cfg, genesis_data):
             ),
             "replace_node_accounts.sh": struct(
                 template=read_file("scripts/replace_node_accounts.sh"),
-                data={},
-            ),
-            "update_state_accounts.sh": struct(
-                template=read_file("scripts/update_state_accounts.sh"),
                 data={},
             ),
             "finalize_genesis.sh": struct(
@@ -319,13 +310,7 @@ def _modify_existing_genesis(plan, chain_cfg, genesis_data):
         command=["/bin/sh", "/tmp/replace_node_accounts.sh"]
     ))
     
-    # 6. Update state accounts (bond module)
-    plan.print("Updating state accounts...")
-    plan.exec("genesis-service", ExecRecipe(
-        command=["/bin/sh", "/tmp/update_state_accounts.sh"]
-    ))
-    
-    # 7. Finalize - move to correct location
+    # 6. Finalize - move to correct location
     plan.print("Finalizing genesis file...")
     plan.exec("genesis-service", ExecRecipe(
         command=["/bin/sh", "/tmp/finalize_genesis.sh"]
