@@ -36,26 +36,21 @@ cp /tmp/genesis.json "$CONFIG_FOLDER/genesis.json"
 # Get validator public keys and convert to bech32
 SECP_PK_JSON=$($BINARY keys show validator --pubkey --keyring-backend test 2>&1)
 echo "SECP public key JSON: $SECP_PK_JSON"
-SECP_PK_B64=$(echo "$SECP_PK_JSON" | jq -r '.key' 2>&1 | tr -d '\n')
-if [ -z "$SECP_PK_B64" ] || [ "$SECP_PK_B64" = "null" ]; then
-  echo "Failed to extract SECP public key"
-  exit 1
-fi
 
 # Convert secp256k1 public key to bech32
-SECP_PK=$(echo "$SECP_PK_JSON" | $BINARY pubkey | tr -d '\n')
-echo "SECP bech32 PK: $SECP_PK"
-
-# Get consensus public key from priv_validator_key.json and convert to bech32
-CONS_PK_JSON=$(cat /root/.thornode/config/priv_validator_key.json | jq -r '.pub_key' 2>&1)
-CONS_PK_B64=$(echo "$CONS_PK_JSON" | jq -r '.value' | tr -d '\n')
-if [ -z "$CONS_PK_B64" ] || [ "$CONS_PK_B64" = "null" ]; then
-  echo "Failed to extract consensus public key"
+SECP_PK=$(echo "$SECP_PK_JSON" | $BINARY pubkey 2>&1 | tr -d '\n')
+if [ -z "$SECP_PK" ] || echo "$SECP_PK" | grep -q "Usage:"; then
+  echo "Failed to convert SECP public key to bech32"
   exit 1
 fi
+echo "SECP bech32 PK: $SECP_PK"
 
-# Convert ed25519 consensus public key to bech32
-CONS_PK=$(echo "$CONS_PK_JSON" | $BINARY pubkey | tr -d '\n')
+# Get consensus public key using tendermint show-validator (already in bech32 format)
+CONS_PK=$($BINARY tendermint show-validator 2>&1 | tr -d '\n')
+if [ -z "$CONS_PK" ] || echo "$CONS_PK" | grep -q "Usage:"; then
+  echo "Failed to get consensus public key"
+  exit 1
+fi
 ED_PK="$CONS_PK"
 
 echo "ED bech32 PK: $ED_PK"
