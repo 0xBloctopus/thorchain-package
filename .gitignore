@@ -89,3 +89,5 @@ yarn-error.log
 dump/
 
 network.yaml
+genesis_file/
+current_genesis/

@@ -22,6 +22,7 @@ chains:
     participants:
       - type: full
         count: 3
+        image: "tiljordan/thornode-forking:1.0.15"  # Use image with contract address genesis fix
         account_balance: 1000000000000
         bond_amount: 500000000000
     

@@ -31,6 +31,11 @@ sed -i 's/^timeout_propose = "3s"/timeout_propose = "1s"/' $CONFIG_FOLDER/config
 # Configure P2P settings
 sed -i 's/^addr_book_strict = true/addr_book_strict = false/' $CONFIG_FOLDER/config.toml
 sed -i 's/^external_address = ""/external_address = "0.0.0.0:26656"/' $CONFIG_FOLDER/config.toml
+# Disable PEX (peer exchange) to prevent discovering and connecting to external mainnet nodes
+sed -i 's/^pex = true/pex = false/' $CONFIG_FOLDER/config.toml
+# Clear any persistent peers and seeds from config to prevent mainnet connections
+sed -i 's/^persistent_peers = ".*"/persistent_peers = ""/' $CONFIG_FOLDER/config.toml
+sed -i 's/^seeds = ".*"/seeds = ""/' $CONFIG_FOLDER/config.toml
 
 # Configure RPC settings
 sed -i 's/^laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/' $CONFIG_FOLDER/config.toml
