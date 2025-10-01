@@ -33,10 +33,10 @@ def launch_single_node(plan, chain_cfg):
     genesis_time_result = plan.exec(
         service_name="genesis-time-calc",
         recipe=ExecRecipe(
-            command=["python", "-c", "from datetime import datetime, timedelta; print((datetime.utcnow() + timedelta(seconds={})).strftime('%Y-%m-%dT%H:%M:%SZ'))".format(genesis_delay)]
+            command=["python", "-c", "from datetime import datetime, timedelta; import sys; sys.stdout.write((datetime.utcnow() + timedelta(seconds={})).strftime('%Y-%m-%dT%H:%M:%SZ'))".format(genesis_delay)]
         )
     )
-    genesis_time = genesis_time_result["output"].strip()
+    genesis_time = genesis_time_result["output"].strip().replace("\n", "").replace("\r", "")
     
     # Remove the helper service
     plan.remove_service("genesis-time-calc")
