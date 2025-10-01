@@ -124,17 +124,27 @@ EOF
 
 echo "Modifying genesis file..."
 
-# Use sed to replace placeholders (much faster than jq for large files)
-CONSENSUS_BLOCK_JSON='{{ .ConsensusBlock }}'
+# Use Python for reliable multi-line JSON replacement
+python3 -c "
+import json
+import sys
 
-# Write JSON to temp files
-echo "$CONSENSUS_BLOCK_JSON" > /tmp/consensus.json
-echo "$NODE_ACCOUNTS" > /tmp/node_accounts.json
+# Read genesis
+with open('$CONFIG_FOLDER/genesis.json', 'r') as f:
+    genesis_text = f.read()
 
-# Use perl for multi-line replacement (more reliable than sed for JSON)
-perl -i -pe 'BEGIN{undef $/;} s/__CONSENSUS_BLOCK__/`cat \/tmp\/consensus.json`/se' "$CONFIG_FOLDER/genesis.json"
-perl -i -pe 'BEGIN{undef $/;} s/__NODE_ACCOUNTS__/`cat \/tmp\/node_accounts.json`/se' "$CONFIG_FOLDER/genesis.json"
-perl -i -pe "s/__RUNE_SUPPLY__/$TOTAL_RUNE_SUPPLY/g" "$CONFIG_FOLDER/genesis.json"
+# Replace placeholders
+consensus = '''{{ .ConsensusBlock }}'''
+node_accounts = '''$NODE_ACCOUNTS'''
+
+genesis_text = genesis_text.replace('\"__CONSENSUS_BLOCK__\"', consensus)
+genesis_text = genesis_text.replace('\"__NODE_ACCOUNTS__\"', node_accounts)
+genesis_text = genesis_text.replace('\"__RUNE_SUPPLY__\"', str($TOTAL_RUNE_SUPPLY))
+
+# Write back
+with open('$CONFIG_FOLDER/genesis.json', 'w') as f:
+    f.write(genesis_text)
+"
 
 # Use jq only for adding new accounts and balances (faster than multiple sed operations)
 jq --arg app_version "$APP_VERSION" \
