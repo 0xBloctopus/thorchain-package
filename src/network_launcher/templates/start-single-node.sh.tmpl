@@ -25,9 +25,13 @@ VALIDATOR_ADDR=$(echo "$VALIDATOR_OUTPUT" | jq -r '.address')
 VALIDATOR_MNEMONIC=$(echo "$VALIDATOR_OUTPUT" | jq -r '.mnemonic')
 
 # Get validator public keys
-SECP_PK=$($BINARY keys show validator --pubkey --keyring-backend test | $BINARY pubkey | tr -d '\n')
-CONS_PK=$($BINARY tendermint show-validator | $BINARY pubkey --bech cons | tr -d '\n')
-ED_PK=$($BINARY tendermint show-validator | $BINARY pubkey | tr -d '\n')
+SECP_PK_JSON=$($BINARY keys show validator --pubkey --keyring-backend test)
+SECP_PK=$(echo "$SECP_PK_JSON" | jq -r '.key' | tr -d '\n')
+
+CONS_PK_JSON=$($BINARY tendermint show-validator)
+# Extract just the key value from the JSON
+CONS_PK=$(echo "$CONS_PK_JSON" | jq -r '.key' | tr -d '\n')
+ED_PK="$CONS_PK"
 
 # Generate faucet keys
 echo "Generating faucet keys..."
