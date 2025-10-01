@@ -4,6 +4,14 @@ GENESIS_FILE="/tmp/genesis.json"
 NEW_BALANCES_FILE="/tmp/new_balances.json"
 TEMP_FILE="/tmp/genesis_temp.json"
 
-jq --slurpfile new_balances "$NEW_BALANCES_FILE" '.app_state.bank.balances = $new_balances[0]' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
+jq --slurpfile new_balances "$NEW_BALANCES_FILE" '
+  .app_state.bank.balances = $new_balances[0] |
+  .app_state.bank.supply = [
+    {
+      "denom": "rune",
+      "amount": ($new_balances[0] | map(.coins[] | select(.denom == "rune") | .amount | tonumber) | add | tostring)
+    }
+  ]
+' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
 
-echo "Replaced balances with validator/faucet accounts"
+echo "Replaced balances and supply with validator/faucet accounts"
