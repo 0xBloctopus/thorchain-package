@@ -46,17 +46,25 @@ if [ -z "$SECP_PK" ] || echo "$SECP_PK" | grep -q "Usage:"; then
 fi
 echo "SECP bech32 PK: $SECP_PK"
 
-# Get consensus public key (thorpub prefix is default, thorcpub is for --bech cons)
+# Get consensus public key in two formats
 $BINARY tendermint show-validator > /tmp/cons_pk.json 2>&1
-CONS_PK=$($BINARY pubkey < /tmp/cons_pk.json 2>&1 | tr -d '\n')
+
+# thorpub prefix for pub_key_set.ed25519
+ED_PK=$($BINARY pubkey < /tmp/cons_pk.json 2>&1 | tr -d '\n')
+if [ -z "$ED_PK" ] || echo "$ED_PK" | grep -q "Usage:"; then
+  echo "Failed to convert ed25519 public key to bech32"
+  exit 1
+fi
+
+# thorcpub prefix for validator_cons_pub_key
+CONS_PK=$($BINARY pubkey --bech cons < /tmp/cons_pk.json 2>&1 | tr -d '\n')
 if [ -z "$CONS_PK" ] || echo "$CONS_PK" | grep -q "Usage:"; then
   echo "Failed to convert consensus public key to bech32"
   exit 1
 fi
-ED_PK="$CONS_PK"
 
-echo "ED bech32 PK: $ED_PK"
-echo "CONS bech32 PK: $CONS_PK"
+echo "ED bech32 PK (thorpub): $ED_PK"
+echo "CONS bech32 PK (thorcpub): $CONS_PK"
 
 # Generate faucet keys
 echo "Generating faucet keys..."
