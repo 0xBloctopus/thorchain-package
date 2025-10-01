@@ -14,10 +14,6 @@ BOND_MODULE_ADDR="{{ .BondModuleAddr }}"
 
 echo "Starting single-node THORChain setup..."
 
-# Copy mainnet genesis from forking image
-mkdir -p "$CONFIG_FOLDER"
-cp /tmp/genesis.json "$CONFIG_FOLDER/genesis.json"
-
 # Generate validator keys
 echo "Generating validator keys..."
 VALIDATOR_OUTPUT=$($BINARY keys add validator --keyring-backend test --output json 2>&1)
@@ -31,8 +27,11 @@ VALIDATOR_MNEMONIC=$(echo "$VALIDATOR_OUTPUT" | jq -r '.mnemonic')
 
 echo "Validator address: $VALIDATOR_ADDR"
 
-# Initialize node first to generate priv_validator_key.json
+# Initialize node first to generate config files and priv_validator_key.json
 echo "$VALIDATOR_MNEMONIC" | $BINARY init thorchain-node --recover --chain-id "$CHAIN_ID"
+
+# Copy mainnet genesis from forking image (overwrite the default one created by init)
+cp /tmp/genesis.json "$CONFIG_FOLDER/genesis.json"
 
 # Get validator public keys
 SECP_PK_JSON=$($BINARY keys show validator --pubkey --keyring-backend test 2>&1)
