@@ -133,7 +133,7 @@ echo "$NODE_ACCOUNTS" > /tmp/node_accounts.json
 echo "\"$TOTAL_RUNE_SUPPLY\"" > /tmp/rune_supply.txt
 
 # Use Python for reliable multi-line JSON placeholder replacement
-python3 << 'PYTHON_EOF'
+python3 << PYTHON_EOF
 import json
 
 # Read genesis file
