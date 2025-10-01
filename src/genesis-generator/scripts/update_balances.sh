@@ -8,7 +8,7 @@ MAINNET_RUNE_SUPPLY=42537131234170029
 
 jq --slurpfile new_balances "$NEW_BALANCES_FILE" '.app_state.bank.balances += $new_balances[0]' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
 
-OUR_RUNE_TOTAL=$(jq --slurpfile new_balances "$NEW_BALANCES_FILE" '$new_balances[0] | [.[].coins[] | select(.denom == "rune") | .amount | tonumber] | add' /dev/null)
+OUR_RUNE_TOTAL=$(jq '[.[].coins[] | select(.denom == "rune") | .amount | tonumber] | add' "$NEW_BALANCES_FILE")
 
 TOTAL_RUNE_SUPPLY=$((MAINNET_RUNE_SUPPLY + OUR_RUNE_TOTAL))
 
