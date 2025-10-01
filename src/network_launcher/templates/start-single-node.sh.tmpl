@@ -1,0 +1,215 @@
+#!/bin/bash
+set -e
+
+BINARY="{{ .Binary }}"
+CONFIG_FOLDER="{{ .ConfigFolder }}"
+CHAIN_ID="{{ .ChainID }}"
+APP_VERSION="{{ .AppVersion }}"
+GENESIS_TIME="{{ .GenesisTime }}"
+INITIAL_HEIGHT="{{ .InitialHeight }}"
+ACCOUNT_BALANCE="{{ .AccountBalance }}"
+BOND_AMOUNT="{{ .BondAmount }}"
+FAUCET_AMOUNT="{{ .FaucetAmount }}"
+BOND_MODULE_ADDR="{{ .BondModuleAddr }}"
+
+echo "Starting single-node THORChain setup..."
+
+# Copy mainnet genesis from forking image
+mkdir -p "$CONFIG_FOLDER"
+cp /tmp/genesis.json "$CONFIG_FOLDER/genesis.json"
+
+# Generate validator keys
+echo "Generating validator keys..."
+VALIDATOR_OUTPUT=$($BINARY keys add validator --keyring-backend test --output json)
+VALIDATOR_ADDR=$(echo "$VALIDATOR_OUTPUT" | jq -r '.address')
+VALIDATOR_MNEMONIC=$(echo "$VALIDATOR_OUTPUT" | jq -r '.mnemonic')
+
+# Get validator public keys
+SECP_PK=$($BINARY keys show validator --pubkey --keyring-backend test | $BINARY pubkey | tr -d '\n')
+CONS_PK=$($BINARY tendermint show-validator | $BINARY pubkey --bech cons | tr -d '\n')
+ED_PK=$($BINARY tendermint show-validator | $BINARY pubkey | tr -d '\n')
+
+# Generate faucet keys
+echo "Generating faucet keys..."
+FAUCET_OUTPUT=$($BINARY keys add faucet --keyring-backend test --output json)
+FAUCET_ADDR=$(echo "$FAUCET_OUTPUT" | jq -r '.address')
+FAUCET_MNEMONIC=$(echo "$FAUCET_OUTPUT" | jq -r '.mnemonic')
+
+echo "Validator address: $VALIDATOR_ADDR"
+echo "Faucet address: $FAUCET_ADDR"
+
+# Calculate total RUNE supply
+MAINNET_RUNE_SUPPLY=42537131234170029
+TOTAL_BALANCE=$((ACCOUNT_BALANCE + FAUCET_AMOUNT))
+TOTAL_RUNE_SUPPLY=$((MAINNET_RUNE_SUPPLY + TOTAL_BALANCE))
+
+# Create node_accounts JSON
+NODE_ACCOUNTS=$(cat <<EOF
+[{
+  "active_block_height": "0",
+  "bond": "$BOND_AMOUNT",
+  "bond_address": "$VALIDATOR_ADDR",
+  "node_address": "$VALIDATOR_ADDR",
+  "pub_key_set": {
+    "ed25519": "$ED_PK",
+    "secp256k1": "$SECP_PK"
+  },
+  "signer_membership": [],
+  "status": "Active",
+  "validator_cons_pub_key": "$CONS_PK",
+  "version": "$APP_VERSION"
+}]
+EOF
+)
+
+# Create accounts JSON
+ACCOUNTS=$(cat <<EOF
+[
+  {
+    "@type": "/cosmos.auth.v1beta1.BaseAccount",
+    "account_number": "0",
+    "address": "$VALIDATOR_ADDR",
+    "pub_key": null,
+    "sequence": "0"
+  },
+  {
+    "@type": "/cosmos.auth.v1beta1.BaseAccount",
+    "account_number": "0",
+    "address": "$FAUCET_ADDR",
+    "pub_key": null,
+    "sequence": "0"
+  }
+]
+EOF
+)
+
+# Create balances JSON
+BALANCES=$(cat <<EOF
+[
+  {
+    "address": "$VALIDATOR_ADDR",
+    "coins": [{"amount": "$ACCOUNT_BALANCE", "denom": "rune"}]
+  },
+  {
+    "address": "$FAUCET_ADDR",
+    "coins": [{"amount": "$FAUCET_AMOUNT", "denom": "rune"}]
+  }
+]
+EOF
+)
+
+echo "Modifying genesis file..."
+
+# Update basic parameters
+jq --arg app_version "$APP_VERSION" \
+   --arg genesis_time "$GENESIS_TIME" \
+   --arg chain_id "$CHAIN_ID" \
+   --arg initial_height "$INITIAL_HEIGHT" \
+   '.app_version = $app_version |
+    .genesis_time = $genesis_time |
+    .chain_id = $chain_id |
+    .initial_height = $initial_height' \
+   "$CONFIG_FOLDER/genesis.json" > "$CONFIG_FOLDER/genesis_temp.json" && \
+   mv "$CONFIG_FOLDER/genesis_temp.json" "$CONFIG_FOLDER/genesis.json"
+
+# Update consensus block
+jq --argjson consensus '{{ .ConsensusBlock }}' \
+   '.consensus = $consensus' \
+   "$CONFIG_FOLDER/genesis.json" > "$CONFIG_FOLDER/genesis_temp.json" && \
+   mv "$CONFIG_FOLDER/genesis_temp.json" "$CONFIG_FOLDER/genesis.json"
+
+# Add new accounts (append to existing)
+echo "$ACCOUNTS" | jq -c '.[]' | while read -r account; do
+  jq --argjson new_account "$account" \
+     '.app_state.auth.accounts += [$new_account]' \
+     "$CONFIG_FOLDER/genesis.json" > "$CONFIG_FOLDER/genesis_temp.json" && \
+     mv "$CONFIG_FOLDER/genesis_temp.json" "$CONFIG_FOLDER/genesis.json"
+done
+
+# Add new balances (append to existing)
+echo "$BALANCES" | jq -c '.[]' | while read -r balance; do
+  jq --argjson new_balance "$balance" \
+     '.app_state.bank.balances += [$new_balance]' \
+     "$CONFIG_FOLDER/genesis.json" > "$CONFIG_FOLDER/genesis_temp.json" && \
+     mv "$CONFIG_FOLDER/genesis_temp.json" "$CONFIG_FOLDER/genesis.json"
+done
+
+# Update total RUNE supply
+jq --arg supply "$TOTAL_RUNE_SUPPLY" \
+   '.app_state.bank.supply = [{"denom": "rune", "amount": $supply}]' \
+   "$CONFIG_FOLDER/genesis.json" > "$CONFIG_FOLDER/genesis_temp.json" && \
+   mv "$CONFIG_FOLDER/genesis_temp.json" "$CONFIG_FOLDER/genesis.json"
+
+# Replace node_accounts
+echo "$NODE_ACCOUNTS" | jq -c '.' | while read -r node_accounts_json; do
+  jq --argjson new_node_accounts "$node_accounts_json" \
+     '.app_state.thorchain.node_accounts = $new_node_accounts' \
+     "$CONFIG_FOLDER/genesis.json" > "$CONFIG_FOLDER/genesis_temp.json" && \
+     mv "$CONFIG_FOLDER/genesis_temp.json" "$CONFIG_FOLDER/genesis.json"
+done
+
+# Update bond module address
+jq --arg bond_addr "$BOND_MODULE_ADDR" \
+   '.app_state.thorchain.reserve = "22000000000000000" |
+    .app_state.auth.accounts += [{
+      "@type": "/cosmos.auth.v1beta1.ModuleAccount",
+      "base_account": {
+        "account_number": "0",
+        "address": $bond_addr,
+        "pub_key": null,
+        "sequence": "0"
+      },
+      "name": "bond",
+      "permissions": []
+    }]' \
+   "$CONFIG_FOLDER/genesis.json" > "$CONFIG_FOLDER/genesis_temp.json" && \
+   mv "$CONFIG_FOLDER/genesis_temp.json" "$CONFIG_FOLDER/genesis.json"
+
+echo "Genesis file prepared successfully"
+
+# Initialize node (this will generate config files)
+echo "$VALIDATOR_MNEMONIC" | $BINARY init thorchain-node --recover --chain-id "$CHAIN_ID"
+
+# Copy our modified genesis back (init may have created a default one)
+cp "$CONFIG_FOLDER/genesis.json" /root/.thornode/config/genesis.json
+
+# Configure node settings
+echo "Configuring node..."
+
+# Set minimum gas prices
+sed -i 's/^minimum-gas-prices = ".*"/minimum-gas-prices = "0rune"/' "$CONFIG_FOLDER/app.toml"
+
+# Enable API
+sed -i 's/^enable = false/enable = true/' "$CONFIG_FOLDER/app.toml"
+sed -i 's/^swagger = false/swagger = true/' "$CONFIG_FOLDER/app.toml"
+
+# Configure consensus timeouts
+sed -i 's/^timeout_commit = "5s"/timeout_commit = "1s"/' "$CONFIG_FOLDER/config.toml"
+sed -i 's/^timeout_propose = "3s"/timeout_propose = "1s"/' "$CONFIG_FOLDER/config.toml"
+
+# Configure P2P (disable for single node)
+sed -i 's/^addr_book_strict = true/addr_book_strict = false/' "$CONFIG_FOLDER/config.toml"
+sed -i 's/^pex = true/pex = false/' "$CONFIG_FOLDER/config.toml"
+sed -i 's/^persistent_peers = ".*"/persistent_peers = ""/' "$CONFIG_FOLDER/config.toml"
+sed -i 's/^seeds = ".*"/seeds = ""/' "$CONFIG_FOLDER/config.toml"
+
+# Configure RPC
+sed -i 's/^laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/' "$CONFIG_FOLDER/config.toml"
+sed -i 's/^cors_allowed_origins = \[\]/cors_allowed_origins = ["*"]/' "$CONFIG_FOLDER/config.toml"
+
+# Configure gRPC
+sed -i 's/^address = "localhost:9090"/address = "0.0.0.0:9090"/' "$CONFIG_FOLDER/app.toml"
+
+# Configure API
+sed -i 's/^address = "tcp:\/\/localhost:1317"/address = "tcp:\/\/0.0.0.0:1317"/' "$CONFIG_FOLDER/app.toml"
+sed -i 's/^enabled-unsafe-cors = false/enabled-unsafe-cors = true/' "$CONFIG_FOLDER/app.toml"
+
+# Configure Prometheus
+sed -i 's/^prometheus = false/prometheus = true/' "$CONFIG_FOLDER/config.toml"
+sed -i 's/^prometheus_listen_addr = ":26660"/prometheus_listen_addr = "0.0.0.0:26660"/' "$CONFIG_FOLDER/config.toml"
+
+echo "Node configured successfully"
+echo "Starting THORNode..."
+
+# Start the node
+exec printf 'validator\nTestPassword!\n' | $BINARY start
