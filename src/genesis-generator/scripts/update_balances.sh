@@ -7,18 +7,18 @@ TEMP_FILE="/tmp/genesis_temp.json"
 jq --slurpfile new_balances "$NEW_BALANCES_FILE" '
   .app_state.bank.balances = $new_balances[0] |
   
-  .app_state.bank.supply |= map(
-    if .denom == "rune" then
-      .amount = (
+  .app_state.bank.supply = [
+    ($new_balances[0] | map(.coins[].denom) | unique)[] as $denom |
+    {
+      denom: $denom,
+      amount: (
         $new_balances[0] 
-        | map(.coins[] | select(.denom == "rune") | .amount | tonumber) 
+        | map(.coins[] | select(.denom == $denom) | .amount | tonumber) 
         | add 
         | tostring
       )
-    else
-      .
-    end
-  )
+    }
+  ]
 ' "$GENESIS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$GENESIS_FILE"
 
-echo "Replaced balances and updated rune supply"
+echo "Replaced balances and filtered supply to match balance denoms"
