@@ -20,18 +20,39 @@ cp /tmp/genesis.json "$CONFIG_FOLDER/genesis.json"
 
 # Generate validator keys
 echo "Generating validator keys..."
-VALIDATOR_OUTPUT=$($BINARY keys add validator --keyring-backend test --output json)
+VALIDATOR_OUTPUT=$($BINARY keys add validator --keyring-backend test --output json 2>&1)
+if [ $? -ne 0 ]; then
+  echo "Failed to generate validator keys: $VALIDATOR_OUTPUT"
+  exit 1
+fi
+
 VALIDATOR_ADDR=$(echo "$VALIDATOR_OUTPUT" | jq -r '.address')
 VALIDATOR_MNEMONIC=$(echo "$VALIDATOR_OUTPUT" | jq -r '.mnemonic')
 
-# Get validator public keys
-SECP_PK_JSON=$($BINARY keys show validator --pubkey --keyring-backend test)
-SECP_PK=$(echo "$SECP_PK_JSON" | jq -r '.key' | tr -d '\n')
+echo "Validator address: $VALIDATOR_ADDR"
 
-CONS_PK_JSON=$($BINARY tendermint show-validator)
-# Extract just the key value from the JSON
-CONS_PK=$(echo "$CONS_PK_JSON" | jq -r '.key' | tr -d '\n')
+# Initialize node first to generate priv_validator_key.json
+echo "$VALIDATOR_MNEMONIC" | $BINARY init thorchain-node --recover --chain-id "$CHAIN_ID"
+
+# Get validator public keys
+SECP_PK_JSON=$($BINARY keys show validator --pubkey --keyring-backend test 2>&1)
+echo "SECP public key JSON: $SECP_PK_JSON"
+SECP_PK=$(echo "$SECP_PK_JSON" | jq -r '.key' 2>&1 | tr -d '\n')
+if [ -z "$SECP_PK" ] || [ "$SECP_PK" = "null" ]; then
+  echo "Failed to extract SECP public key"
+  exit 1
+fi
+
+# Get consensus public key from priv_validator_key.json
+CONS_PK=$(cat /root/.thornode/config/priv_validator_key.json | jq -r '.pub_key.value' | tr -d '\n')
+if [ -z "$CONS_PK" ] || [ "$CONS_PK" = "null" ]; then
+  echo "Failed to extract consensus public key"
+  exit 1
+fi
 ED_PK="$CONS_PK"
+
+echo "SECP PK: $SECP_PK"
+echo "CONS PK: $CONS_PK"
 
 # Generate faucet keys
 echo "Generating faucet keys..."
@@ -171,10 +192,7 @@ jq --arg bond_addr "$BOND_MODULE_ADDR" \
 
 echo "Genesis file prepared successfully"
 
-# Initialize node (this will generate config files)
-echo "$VALIDATOR_MNEMONIC" | $BINARY init thorchain-node --recover --chain-id "$CHAIN_ID"
-
-# Copy our modified genesis back (init may have created a default one)
+# Copy our modified genesis to the final location
 cp "$CONFIG_FOLDER/genesis.json" /root/.thornode/config/genesis.json
 
 # Configure node settings
