@@ -124,14 +124,16 @@ EOF
 
 echo "Modifying genesis file..."
 
-# Use single jq operation for all genesis modifications
+# Use sed for placeholder replacements (much faster for large files)
+sed -i "s|\"__CONSENSUS_BLOCK__\"|{{ .ConsensusBlock }}|g" "$CONFIG_FOLDER/genesis.json"
+sed -i "s|\"__NODE_ACCOUNTS__\"|$NODE_ACCOUNTS|g" "$CONFIG_FOLDER/genesis.json"
+sed -i "s|\"__RUNE_SUPPLY__\"|\"$TOTAL_RUNE_SUPPLY\"|g" "$CONFIG_FOLDER/genesis.json"
+
+# Use jq only for adding new accounts and balances
 jq --arg app_version "$APP_VERSION" \
    --arg genesis_time "$GENESIS_TIME" \
    --arg chain_id "$CHAIN_ID" \
    --arg initial_height "$INITIAL_HEIGHT" \
-   --argjson consensus '{{ .ConsensusBlock }}' \
-   --argjson node_accounts "$NODE_ACCOUNTS" \
-   --arg supply "$TOTAL_RUNE_SUPPLY" \
    --argjson accounts "$ACCOUNTS" \
    --argjson balances "$BALANCES" \
    --arg bond_addr "$BOND_MODULE_ADDR" \
@@ -140,9 +142,6 @@ jq --arg app_version "$APP_VERSION" \
    .genesis_time = $genesis_time |
    .chain_id = $chain_id |
    .initial_height = $initial_height |
-   .consensus = $consensus |
-   .app_state.thorchain.node_accounts = $node_accounts |
-   .app_state.bank.supply = [{"denom": "rune", "amount": $supply}] |
    .app_state.thorchain.reserve = "22000000000000000" |
    .app_state.auth.accounts += $accounts |
    .app_state.auth.accounts += [{
