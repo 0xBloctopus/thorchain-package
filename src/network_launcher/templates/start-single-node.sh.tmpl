@@ -127,15 +127,14 @@ echo "Modifying genesis file..."
 # Use sed to replace placeholders (much faster than jq for large files)
 CONSENSUS_BLOCK_JSON='{{ .ConsensusBlock }}'
 
-# Escape special characters for sed
-CONSENSUS_ESCAPED=$(echo "$CONSENSUS_BLOCK_JSON" | sed 's/[\/&]/\\&/g')
-NODE_ACCOUNTS_ESCAPED=$(echo "$NODE_ACCOUNTS" | sed 's/[\/&]/\\&/g')
-SUPPLY_ESCAPED=$(echo "$TOTAL_RUNE_SUPPLY" | sed 's/[\/&]/\\&/g')
+# Escape for sed - need to escape newlines, slashes, and ampersands
+CONSENSUS_ESCAPED=$(echo "$CONSENSUS_BLOCK_JSON" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/[\/&]/\\&/g')
+NODE_ACCOUNTS_ESCAPED=$(echo "$NODE_ACCOUNTS" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/[\/&]/\\&/g')
 
 # Replace placeholders with sed
-sed -e "s/__CONSENSUS_BLOCK__/$CONSENSUS_ESCAPED/g" \
-    -e "s/__NODE_ACCOUNTS__/$NODE_ACCOUNTS_ESCAPED/g" \
-    -e "s/__RUNE_SUPPLY__/$SUPPLY_ESCAPED/g" \
+sed -e "s|__CONSENSUS_BLOCK__|$CONSENSUS_ESCAPED|g" \
+    -e "s|__NODE_ACCOUNTS__|$NODE_ACCOUNTS_ESCAPED|g" \
+    -e "s|__RUNE_SUPPLY__|$TOTAL_RUNE_SUPPLY|g" \
     "$CONFIG_FOLDER/genesis.json" > "$CONFIG_FOLDER/genesis_temp.json" && \
     mv "$CONFIG_FOLDER/genesis_temp.json" "$CONFIG_FOLDER/genesis.json"
 
@@ -171,9 +170,6 @@ jq --arg app_version "$APP_VERSION" \
    mv "$CONFIG_FOLDER/genesis_temp.json" "$CONFIG_FOLDER/genesis.json"
 
 echo "Genesis file prepared successfully"
-
-# Copy our modified genesis to the final location
-cp "$CONFIG_FOLDER/genesis.json" /root/.thornode/config/genesis.json
 
 # Configure node settings
 echo "Configuring node..."
