@@ -31,9 +31,7 @@ chains:
     faucet:
       faucet_amount: 10000000000000
     
-    additional_services:
-      - faucet
-      - bdjuno
+    additional_services: []
     
     modules:
       auth:
