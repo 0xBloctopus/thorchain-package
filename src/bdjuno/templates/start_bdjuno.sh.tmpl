@@ -1,23 +1,7 @@
 #!/bin/bash
 
 # Set variables
-NODE_RPC="{{ .NodeRPC }}"
 BDJUNO_HOME="{{ .BdjunoHome }}"
-
-# Download genesis from node RPC
-echo "Fetching genesis from node RPC at $NODE_RPC..."
-curl -s "$NODE_RPC/genesis" | jq -r '.result.genesis' > /tmp/genesis.json
-
-# Parse the genesis file
-echo "Parsing the genesis file..."
-callisto parse genesis-file --genesis-file-path /tmp/genesis.json --home "$BDJUNO_HOME"
-STATUS=$?
-if [ $STATUS -ne 0 ]; then
-  echo "Error: Failed to parse genesis file with status code $STATUS"
-  exit $STATUS
-fi
-
-echo "Genesis file parsed successfully."
 
 # Start bdjuno
 echo "Starting bdjuno..."

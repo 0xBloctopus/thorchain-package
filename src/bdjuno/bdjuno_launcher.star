@@ -89,10 +89,7 @@ def launch_bdjuno_service(plan, postgres_service, node_service, chain_name):
         name="{}-hasura-metadata".format(chain_name)
     )
 
-    # Configure bdjuno to fetch genesis from node RPC
-    node_rpc = "http://{}:{}".format(node_service.ip_address, node_service.ports["rpc"].number)
     bdjuno_start_config = {
-        "NodeRPC": node_rpc,
         "BdjunoHome": "/bdjuno/.bdjuno"
     }
 
