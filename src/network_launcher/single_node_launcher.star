@@ -201,6 +201,7 @@ open("/tmp/accounts.json","w").write(json.dumps(accounts))
 open("/tmp/balances.json","w").write(json.dumps(balances))
 open("/tmp/rune_supply.txt","w").write(str(total_rune_supply))
 open("/tmp/consensus_block.json","w").write(json.dumps(%(consensus_block)s))
+open("/tmp/vault_membership.json","w").write(json.dumps([secp_pk]))
 PY
 """ % {
                     "validator_addr": validator_addr,
@@ -219,36 +220,31 @@ PY
         description="Prepare small JSON payloads and total RUNE supply",
     )
 
-    # h) Single-pass placeholder replacements in genesis
+    # h) Single-pass placeholder replacements in genesis via sed
     plan.exec(
         node_name,
         ExecRecipe(
             command=[
                 "/bin/sh",
                 "-lc",
-                r"""
-python3 - << 'PY'
-import json
-cfg = %(config_folder)r + "/genesis.json"
-with open(cfg,'r') as f:
-    g = f.read()
-consensus_block = open('/tmp/consensus_block.json','r').read().strip()
-node_accounts = open('/tmp/node_accounts.json','r').read().strip()
-rune_supply = open('/tmp/rune_supply.txt','r').read().strip()
-validator_pubkey = json.loads(node_accounts)[0]['pub_key_set']['secp256k1']
-
-g = g.replace('"__CONSENSUS_BLOCK__"', consensus_block)
-g = g.replace('"__NODE_ACCOUNTS__"', node_accounts)
-g = g.replace('"__RUNE_SUPPLY__"', rune_supply)
-g = g.replace('"__VAULT_MEMBERSHIP__"', '["'+validator_pubkey+'"]')
-
-with open(cfg,'w') as f:
-    f.write(g)
-PY
-""".replace("%(config_folder)r", repr(config_folder)),
+                """
+set -e
+CFG=%(cfg)s/genesis.json
+cb=$(tr -d '\\n\\r' </tmp/consensus_block.json)
+na=$(tr -d '\\n\\r' </tmp/node_accounts.json)
+rs=$(tr -d '\\n\\r' </tmp/rune_supply.txt)
+vm=$(tr -d '\\n\\r' </tmp/vault_membership.json)
+escape() { printf '%%s' "$1" | sed -e 's/[&/\\\\]/\\\\&/g'; }
+sed -i \
+  -e "s/\\"__CONSENSUS_BLOCK__\\"/$(escape "$cb")/" \
+  -e "s/\\"__NODE_ACCOUNTS__\\"/$(escape "$na")/" \
+  -e "s/\\"__RUNE_SUPPLY__\\"/$(escape "$rs")/" \
+  -e "s/\\"__VAULT_MEMBERSHIP__\\"/$(escape "$vm")/" \
+  "$CFG"
+""" % {"cfg": config_folder},
             ]
         ),
-        description="Apply large-genesis placeholder replacements (single write)",
+        description="Apply large-genesis placeholder replacements (single sed pass)",
     )
 
     # i) Single jq pass for light updates
@@ -339,7 +335,7 @@ sed -i 's/^prometheus_listen_addr = ":26660"/prometheus_listen_addr = "0.0.0.0:2
             command=[
                 "/bin/sh",
                 "-lc",
-                "nohup sh -c \"printf 'validator\\nTestPassword!\\n' | {bin} start\" >/var/log/thornode.out 2>&1 & disown".format(
+                "nohup sh -c \"printf 'validator\\nTestPassword!\\n' | {bin} start\" >/var/log/thornode.out 2>&1 & echo $! >/tmp/thornode.pid; sleep 1".format(
                     bin=binary
                 ),
             ],
