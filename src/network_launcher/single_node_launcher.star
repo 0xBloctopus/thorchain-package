@@ -88,7 +88,7 @@ def launch_single_node(plan, chain_cfg):
     
     # Configure ports
     ports = {
-        "rpc": PortSpec(number=26657, transport_protocol="TCP", wait="3m"),
+        "rpc": PortSpec(number=26657, transport_protocol="TCP", wait="6m"),
         "p2p": PortSpec(number=26656, transport_protocol="TCP", wait=None),
         "grpc": PortSpec(number=9090, transport_protocol="TCP", wait=None),
         "api": PortSpec(number=1317, transport_protocol="TCP", wait=None),

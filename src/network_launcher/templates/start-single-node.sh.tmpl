@@ -157,14 +157,19 @@ with open('$CONFIG_FOLDER/genesis.json', 'r') as f:
 with open('/tmp/consensus_block.json', 'r') as f:
     consensus_block = f.read().strip()
 with open('/tmp/node_accounts.json', 'r') as f:
-    node_accounts = f.read().strip()
+    node_accounts_text = f.read().strip()
 with open('/tmp/rune_supply.txt', 'r') as f:
     rune_supply = f.read().strip()
 
+# Parse node accounts to get validator pubkey
+node_accounts = json.loads(node_accounts_text)
+validator_pubkey = node_accounts[0]['pub_key_set']['secp256k1']
+
 # Replace placeholders
 genesis_text = genesis_text.replace('"__CONSENSUS_BLOCK__"', consensus_block)
-genesis_text = genesis_text.replace('"__NODE_ACCOUNTS__"', node_accounts)
+genesis_text = genesis_text.replace('"__NODE_ACCOUNTS__"', node_accounts_text)
 genesis_text = genesis_text.replace('"__RUNE_SUPPLY__"', rune_supply)
+genesis_text = genesis_text.replace('"__VAULT_MEMBERSHIP__"', '["' + validator_pubkey + '"]')
 
 # Write back
 with open('$CONFIG_FOLDER/genesis.json', 'w') as f:
