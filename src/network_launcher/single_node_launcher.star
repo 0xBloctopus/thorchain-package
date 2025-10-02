@@ -230,65 +230,49 @@ PY
                 """
 set -e
 CFG=%(cfg)s/genesis.json
+
+# Read JSON fragments and tokens
 cb=$(tr -d '\\n\\r' </tmp/consensus_block.json)
 na=$(tr -d '\\n\\r' </tmp/node_accounts.json)
-rs=$(tr -d '\\n\\r' </tmp/rune_supply.txt)
-rsq=$(printf '"%%s"' "$rs")
 vm=$(tr -d '\\n\\r' </tmp/vault_membership.json)
+ac=$(tr -d '\\n\\r' </tmp/accounts.json)
+bl=$(tr -d '\\n\\r' </tmp/balances.json)
+rs=$(tr -d '\\n\\r' </tmp/rune_supply.txt)
+
+# Scalars from launcher
+GENESIS_TIME=%(genesis_time)s
+CHAIN_ID=%(chain_id)s
+INITIAL_HEIGHT=%(initial_height)s
+APP_VERSION=%(app_version)s
+RESERVE="$rs"
+
 escape() { printf '%%s' "$1" | sed -e 's/[&/\\\\]/\\\\&/g'; }
+
 sed -i \
+  -e "s/\\"__GENESIS_TIME__\\"/\\"$(escape "$GENESIS_TIME")\\"/" \
+  -e "s/\\"__CHAIN_ID__\\"/\\"$(escape "$CHAIN_ID")\\"/" \
+  -e "s/\\"__INITIAL_HEIGHT__\\"/\\"$(escape "$INITIAL_HEIGHT")\\"/" \
+  -e "s/\\"__APP_VERSION__\\"/\\"$(escape "$APP_VERSION")\\"/" \
+  -e "s/\\"__RESERVE__\\"/\\"$(escape "$RESERVE")\\"/" \
   -e "s/\\"__CONSENSUS_BLOCK__\\"/$(escape "$cb")/" \
   -e "s/\\"__NODE_ACCOUNTS__\\"/$(escape "$na")/" \
-  -e "s/\\"__RUNE_SUPPLY__\\"/$(escape "$rsq")/" \
   -e "s/\\"__VAULT_MEMBERSHIP__\\"/$(escape "$vm")/" \
+  -e "s/\\"__ACCOUNTS__\\"/$(escape "$ac")/" \
+  -e "s/\\"__BALANCES__\\"/$(escape "$bl")/" \
+  -e "s/\\"__RUNE_SUPPLY__\\"/\\"$(escape "$rs")\\"/" \
   "$CFG"
-""" % {"cfg": config_folder},
-            ]
-        ),
-        description="Apply large-genesis placeholder replacements (single sed pass)",
-    )
-
-    # i) Single jq pass for light updates
-    plan.exec(
-        node_name,
-        ExecRecipe(
-            command=[
-                "/bin/sh",
-                "-lc",
-                """
-jq --arg app_version %(app_version)s \
-   --arg genesis_time %(genesis_time)s \
-   --arg chain_id %(chain_id)s \
-   --arg initial_height %(initial_height)s \
-   --arg bond_addr %(bond_addr)s \
-   --argjson accounts "$(cat /tmp/accounts.json)" \
-   --argjson balances "$(cat /tmp/balances.json)" \
-   '
-   .app_version = $app_version |
-   .genesis_time = $genesis_time |
-   .chain_id = $chain_id |
-   .initial_height = $initial_height |
-   .app_state.thorchain.reserve = "22000000000000000" |
-   .app_state.auth.accounts += $accounts |
-   .app_state.auth.accounts += [{
-     "@type": "/cosmos.auth.v1beta1.ModuleAccount",
-     "base_account": { "account_number": "0", "address": $bond_addr, "pub_key": null, "sequence": "0" },
-     "name": "bond", "permissions": []
-   }] |
-   .app_state.bank.balances += $balances
-   ' %(cfg)s/genesis.json > %(cfg)s/genesis.tmp && mv %(cfg)s/genesis.tmp %(cfg)s/genesis.json
 """ % {
-                    "app_version": json.encode(app_version),
-                    "genesis_time": json.encode(genesis_time),
-                    "chain_id": json.encode(chain_id),
-                    "initial_height": json.encode(initial_height),
-                    "bond_addr": json.encode(bond_module_addr),
                     "cfg": config_folder,
+                    "genesis_time": genesis_time,
+                    "chain_id": chain_id,
+                    "initial_height": initial_height,
+                    "app_version": app_version,
                 },
             ]
         ),
-        description="Apply jq light updates (single pass)",
+        description="Apply placeholders via single sed pass",
     )
+
 
     # j) Batch config updates
     plan.exec(
