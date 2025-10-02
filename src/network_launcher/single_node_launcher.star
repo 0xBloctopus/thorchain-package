@@ -233,7 +233,7 @@ CFG=%(cfg)s/genesis.json
 cb=$(tr -d '\\n\\r' </tmp/consensus_block.json)
 na=$(tr -d '\\n\\r' </tmp/node_accounts.json)
 rs=$(tr -d '\\n\\r' </tmp/rune_supply.txt)
-rsq=$(printf '"%s"' "$rs")
+rsq=$(printf '"%%s"' "$rs")
 vm=$(tr -d '\\n\\r' </tmp/vault_membership.json)
 escape() { printf '%%s' "$1" | sed -e 's/[&/\\\\]/\\\\&/g'; }
 sed -i \
