@@ -199,6 +199,8 @@ balances = [
 open("/tmp/node_accounts.json","w").write(json.dumps(node_accounts))
 open("/tmp/accounts.json","w").write(json.dumps(accounts))
 open("/tmp/balances.json","w").write(json.dumps(balances))
+open("/tmp/accounts_fragment.json","w").write(", ".join(json.dumps(x) for x in accounts))
+open("/tmp/balances_fragment.json","w").write(", ".join(json.dumps(x) for x in balances))
 open("/tmp/rune_supply.txt","w").write(str(total_rune_supply))
 open("/tmp/consensus_block.json","w").write(json.dumps(%(consensus_block)s))
 open("/tmp/vault_membership.json","w").write(json.dumps([secp_pk]))
@@ -235,8 +237,8 @@ CFG=%(cfg)s/genesis.json
 cb=$(tr -d '\\n\\r' </tmp/consensus_block.json)
 na=$(tr -d '\\n\\r' </tmp/node_accounts.json)
 vm=$(tr -d '\\n\\r' </tmp/vault_membership.json)
-ac=$(tr -d '\\n\\r' </tmp/accounts.json)
-bl=$(tr -d '\\n\\r' </tmp/balances.json)
+ac=$(tr -d '\\n\\r' </tmp/accounts_fragment.json)
+bl=$(tr -d '\\n\\r' </tmp/balances_fragment.json)
 rs=$(tr -d '\\n\\r' </tmp/rune_supply.txt)
 
 # Scalars from launcher
