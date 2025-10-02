@@ -57,7 +57,7 @@ def launch_single_node(plan, chain_cfg):
 
     # Ports
     ports = {
-        "rpc": PortSpec(number=26657, transport_protocol="TCP", wait="6m"),
+        "rpc": PortSpec(number=26657, transport_protocol="TCP", wait=None),
         "p2p": PortSpec(number=26656, transport_protocol="TCP", wait=None),
         "grpc": PortSpec(number=9090, transport_protocol="TCP", wait=None),
         "api": PortSpec(number=1317, transport_protocol="TCP", wait=None),
@@ -332,17 +332,19 @@ sed -i 's/^prometheus_listen_addr = ":26660"/prometheus_listen_addr = "0.0.0.0:2
         description="Apply node configuration (API/RPC/gRPC/Prometheus/P2P)",
     )
 
-    # Phase B: re-add service with real start entrypoint
-    plan.remove_service(node_name)
-    plan.add_service(
-        name=node_name,
-        config=ServiceConfig(
-            image=forking_image,
-            ports=ports,
-            entrypoint=["/bin/sh", "-lc", "printf 'validator\\nTestPassword!\\n' | {} start".format(binary)],
-            min_cpu=participant.get("min_cpu", 500),
-            min_memory=participant.get("min_memory", 512),
+    # Final: start thornode in background so plan continues
+    plan.exec(
+        node_name,
+        ExecRecipe(
+            command=[
+                "/bin/sh",
+                "-lc",
+                "nohup sh -c \"printf 'validator\\nTestPassword!\\n' | {bin} start\" >/var/log/thornode.out 2>&1 & disown".format(
+                    bin=binary
+                ),
+            ],
         ),
+        description="Start thornode in background",
     )
 
     return {"name": node_name, "ip": base_service.ip_address}
