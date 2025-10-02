@@ -333,6 +333,7 @@ sed -i 's/^prometheus_listen_addr = ":26660"/prometheus_listen_addr = "0.0.0.0:2
     )
 
     # Phase B: re-add service with real start entrypoint
+    plan.remove_service(node_name)
     plan.add_service(
         name=node_name,
         config=ServiceConfig(
