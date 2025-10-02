@@ -259,11 +259,11 @@ PY
                 "/bin/sh",
                 "-lc",
                 """
-jq --arg app_version %(app_version)q \
-   --arg genesis_time %(genesis_time)q \
-   --arg chain_id %(chain_id)q \
-   --arg initial_height %(initial_height)q \
-   --arg bond_addr %(bond_addr)q \
+jq --arg app_version %(app_version)s \
+   --arg genesis_time %(genesis_time)s \
+   --arg chain_id %(chain_id)s \
+   --arg initial_height %(initial_height)s \
+   --arg bond_addr %(bond_addr)s \
    --argjson accounts "$(cat /tmp/accounts.json)" \
    --argjson balances "$(cat /tmp/balances.json)" \
    '
