@@ -1,7 +1,7 @@
 def launch_faucet(plan, chain_name, chain_id, mnemonic, transfer_amount):
     # Get first node
     first_node = plan.get_service(
-        name = "{}-node-1".format(chain_name)
+        name = "{}-node".format(chain_name)
     )
 
     mnemonic_data = {
