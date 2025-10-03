@@ -226,6 +226,7 @@ fi
         description="Generate faucet key (addr + mnemonic)",
     )
     faucet_addr = f_res["extract.faucet_addr"].replace("\n", "")
+    faucet_mnemonic = f_res["extract.faucet_mnemonic"].replace("\n", "")
     plan.exec(
         node_name,
         ExecRecipe(
