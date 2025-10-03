@@ -109,7 +109,7 @@
   },
   {
     "denom": "btc-btc",
-    "amount": "946474220"
+    "amount": "947105532"
   },
   {
     "denom": "btc/btc",
@@ -289,7 +289,7 @@
   },
   {
     "denom": "rune",
-    "amount": "42537131234170029"
+    "amount": "42537132255533431"
   },
   {
     "denom": "tcy",
@@ -489,7 +489,7 @@
   },
   {
     "denom": "x/staking-tcy",
-    "amount": "861145076524417"
+    "amount": "861112432064683"
   },
   {
     "denom": "x/staking-thor.nami",
