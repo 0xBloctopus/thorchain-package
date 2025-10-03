@@ -61,10 +61,17 @@ def run(plan, args):
             if service in service_launchers:
                 plan.print("Launching {} for {}".format(service, chain_name))
                 if service == "faucet":
-                    # For single node, faucet mnemonic needs to be retrieved from the node
-                    # For now, we'll skip faucet in simplified mode
-                    plan.print("Note: Faucet service requires mnemonic extraction - skipping for now")
-                    pass
+                    # Retrieve faucet mnemonic from node and launch faucet
+                    faucet_mnemonic_res = plan.exec(
+                        service_name=node_name,
+                        recipe=ExecRecipe(
+                            command=["/bin/sh","-lc","cat /tmp/faucet.mnemonic | tr -d '\\r'"],
+                            extract={"mnemonic":"."},
+                        ),
+                        description="Read faucet mnemonic from node",
+                    )
+                    faucet_mnemonic = faucet_mnemonic_res["extract.mnemonic"]
+                    faucet.launch_faucet(plan, chain_name, chain_id, faucet_mnemonic, chain["faucet"]["transfer_amount"])
                 elif service == "bdjuno":
                     service_launchers[service](plan, chain_name)
                 elif service == "swap-ui":

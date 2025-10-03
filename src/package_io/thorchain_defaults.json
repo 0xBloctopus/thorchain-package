@@ -89,10 +89,11 @@
   ],
   "forking": {
     "enabled": false,
-    "image": "tiljordan/thornode-forking:1.0.15",
+    "image": "tiljordan/thornode-forking:1.0.17",
     "grpc": "grpc.thor.pfc.zone:443",
     "chain_id": "thorchain-mainnet-v1",
     "height": 0,
+    "diffs_api_base": "https://thorchain.bloctopus.io/bloctopus/diffs",
     "cache_enabled": true,
     "cache_size": 10000,
     "timeout": "60s",

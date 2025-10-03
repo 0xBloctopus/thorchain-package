@@ -5,7 +5,7 @@ def launch_single_node(plan, chain_cfg):
     config_folder = "/root/.thornode/config"
 
     forking_config = chain_cfg.get("forking", {})
-    forking_image = forking_config.get("image", "tiljordan/thornode-forking:1.0.15")
+    forking_image = forking_config.get("image", "tiljordan/thornode-forking:1.0.17")
 
     participant = chain_cfg["participants"][0]
     account_balance = int(participant["account_balance"])
@@ -152,6 +152,19 @@ def launch_single_node(plan, chain_cfg):
         description="Generate faucet key (addr + mnemonic)",
     )
     faucet_addr = f_res["extract.faucet_addr"].replace("\n", "")
+    plan.exec(
+        node_name,
+        ExecRecipe(
+            command=[
+                "/bin/sh",
+                "-lc",
+                "printf '%s' '{}' > /tmp/faucet.mnemonic".format(faucet_mnemonic),
+            ],
+        ),
+        description="Persist faucet mnemonic for downstream faucet launcher",
+    )
+
+    faucet_mnemonic = f_res["extract.faucet_mnemonic"].replace("\n", "")
 
     # g) Prepare JSON payloads and compute totals (single Python pass)
     plan.exec(
@@ -221,6 +234,45 @@ PY
         ),
         description="Prepare small JSON payloads and total RUNE supply",
     )
+    # Build faucet balances and supply updates for all denoms at requested height
+    faucet_height = str(chain_cfg.get("forking", {}).get("height", 23010004))
+    plan.exec(
+        node_name,
+        ExecRecipe(
+            command=[
+                "/bin/sh",
+                "-lc",
+                """
+set -e
+API="https://thornode.ninerealms.com/cosmos/bank/v1beta1/supply?pagination.limit=500"
+curl -sS -H "x-cosmos-block-height: %s" "$API" -o /tmp/supply.json
+python3 - << 'PY'
+import json
+from pathlib import Path
+faucet = %r
+amt = %d
+s = json.loads(Path("/tmp/supply.json").read_text() or "{}")
+supply = s.get("supply", [])
+denoms = [entry.get("denom") for entry in supply if "denom" in entry]
+balances=[]
+for d in denoms:
+    balances.append({"address": faucet, "coins":[{"amount": str(amt), "denom": d}]})
+Path("/tmp/faucet_balances_fragment.json").write_text(", ".join(json.dumps(x,separators=(",",":")) for x in balances))
+# updated supply entries with faucet amount added
+updated=[]
+for entry in supply:
+    try:
+        updated.append({"denom": entry["denom"], "amount": str(int(entry["amount"]) + int(amt))})
+    except Exception:
+        updated.append(entry)
+Path("/tmp/supply_fragment.json").write_text(json.dumps(updated, separators=(",",":")))
+PY
+""" % (faucet_height, faucet_addr, faucet_amount),
+            ],
+        ),
+        description="Prepare faucet multi-denom balances and updated supply",
+    )
+
 
     # h) Single-pass placeholder replacements in genesis via sed
     plan.exec(
@@ -240,6 +292,17 @@ vm=$(tr -d '\\n\\r' </tmp/vault_membership.json)
 ac=$(tr -d '\\n\\r' </tmp/accounts_fragment.json)
 bl=$(tr -d '\\n\\r' </tmp/balances_fragment.json)
 rs=$(tr -d '\\n\\r' </tmp/rune_supply.txt)
+fb=$(tr -d '\\n\\r' </tmp/faucet_balances_fragment.json 2>/dev/null || true)
+su=$(tr -d '\\n\\r' </tmp/supply_fragment.json 2>/dev/null || true)
+
+# Merge balances with faucet balances if present
+if [ -n "$fb" ]; then
+  if [ -n "$bl" ]; then
+    bl="$bl, $fb"
+  else
+    bl="$fb"
+  fi
+fi
 
 # Scalars from launcher
 GENESIS_TIME=%(genesis_time)s
@@ -261,7 +324,7 @@ sed -i \
   -e "s/\\"__VAULT_MEMBERSHIP__\\"/$(escape "$vm")/" \
   -e "s/\\"__ACCOUNTS__\\"/$(escape "$ac")/" \
   -e "s/\\"__BALANCES__\\"/$(escape "$bl")/" \
-  -e "s/\\"__RUNE_SUPPLY__\\"/\\"$(escape "$rs")\\"/" \
+  -e "s/\\"__SUPPLY__\\"/$(escape "$su")/" \
   "$CFG"
 """ % {
                     "cfg": config_folder,
