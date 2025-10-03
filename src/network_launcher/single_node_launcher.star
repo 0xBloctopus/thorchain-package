@@ -233,6 +233,40 @@ PY
         description="Prepare small JSON payloads and total RUNE supply",
     )
     # Build faucet balances and supply updates for all denoms at requested height
+    # Validate requested fork height and fetch cumulative KV diffs if needed
+    plan.exec(
+        node_name,
+        ExecRecipe(
+            command=[
+                "/bin/sh",
+                "-lc",
+                """
+set -e
+API_BASE="%s"
+REQ="%s"
+BASE=23010003
+curl -sS "$API_BASE/meta" -o /tmp/diffs_meta.json
+MIN=$(sed -n 's/.*"min_height":[ ]*\\([0-9]*\\).*/\\1/p' /tmp/diffs_meta.json)
+MAX=$(sed -n 's/.*"max_height":[ ]*\\([0-9]*\\).*/\\1/p' /tmp/diffs_meta.json)
+if [ -z "$REQ" ] || [ "$REQ" = "0" ]; then REQ="$BASE"; fi
+if [ "$REQ" -lt "$MIN" ] || [ "$REQ" -gt "$MAX" ]; then
+  echo "Requested height $REQ out of bounds [$MIN,$MAX]" >&2; exit 1
+fi
+if [ "$REQ" -le "$BASE" ]; then
+  echo "{}" > /tmp/diff.json
+else
+  curl -sS "$API_BASE/since/$REQ" -o /tmp/diff.json
+fi
+"""
+                % (
+                    forking_config.get("diffs_api_base", "https://thorchain.bloctopus.io/bloctopus/diffs"),
+                    str(forking_config.get("height", 0)),
+                ),
+            ],
+        ),
+        description="Fetch diffs meta and cumulative KV patch",
+    )
+
     faucet_height = str(chain_cfg.get("forking", {}).get("height", 23010004))
     plan.exec(
         node_name,
