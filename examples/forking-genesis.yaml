@@ -5,56 +5,24 @@ chains:
     app_version: "3.11.0"
     initial_height: 23010004
     genesis_delay: 5
-    
+
     forking:
       enabled: true
       image: "tiljordan/thornode-forking:1.0.17"
-    
-    consensus:
-      block_max_bytes: 22020096
-      block_max_gas: -1
-      evidence_max_age_num_blocks: 100000
-      evidence_max_age_duration: 172800000000000
-      evidence_max_bytes: 1048576
-      validator_pub_key_types:
-        - ed25519
-    
+      height: 23015000
+
     participants:
       - type: full
         count: 1
-        image: "tiljordan/thornode-forking:1.0.17"  # Use image with contract address genesis fix
+        image: "tiljordan/thornode-forking:1.0.17"
         account_balance: 1000000000000
         bond_amount: 500000000000
         min_cpu: 500
         min_memory: 512
-    
+
     faucet:
-      faucet_amount: 10000000000000
-    
+      faucet_amount: 1000000000
+      transfer_amount: 100000000
+
     additional_services:
-      - bdjuno
-    
-    modules:
-      auth:
-        max_memo_characters: 256
-        tx_sig_limit: 7
-        tx_size_cost_per_byte: 10
-        sig_verify_cost_ed25519: 590
-        sig_verify_cost_secp256k1: 1000
-      mint:
-        inflation: "0.130000000000000000"
-        annual_provisions: "0.000000000000000000"
-        blocks_per_year: 6311520
-        goal_bonded: "0.670000000000000000"
-        inflation_max: "0.200000000000000000"
-        inflation_min: "0.070000000000000000"
-        inflation_rate_change: "0.130000000000000000"
-    
-    denom:
-      name: rune
-      display: rune
-      symbol: RUNE
-      description: Native token of THORChain
-    
-    reserve_amount: 1000000000000
-    chain_contracts: []
+      - faucet

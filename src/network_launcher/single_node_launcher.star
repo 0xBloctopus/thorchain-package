@@ -164,8 +164,6 @@ def launch_single_node(plan, chain_cfg):
         description="Persist faucet mnemonic for downstream faucet launcher",
     )
 
-    faucet_mnemonic = f_res["extract.faucet_mnemonic"].replace("\n", "")
-
     # g) Prepare JSON payloads and compute totals (single Python pass)
     plan.exec(
         node_name,
