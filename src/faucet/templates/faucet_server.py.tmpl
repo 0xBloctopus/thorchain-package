@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+import json
+import subprocess
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import os
+
+CHAIN_ID = os.environ.get("CHAIN_ID", "thorchain")
+NODE_URL = os.environ.get("NODE_URL", "http://localhost:26657")
+KEY_NAME = os.environ.get("KEY_NAME", "faucet")
+KEYRING_BACKEND = os.environ.get("KEYRING_BACKEND", "test")
+PORT = int(os.environ.get("PORT", "8090"))
+
+class Handler(BaseHTTPRequestHandler):
+    def _send(self, code, body):
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(body).encode())
+
+    def do_POST(self):
+        if self.path != "/fund":
+            self._send(404, {"error":"not found"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length","0"))
+            data = json.loads(self.rfile.read(length) or "{}")
+            address = data.get("address")
+            amount = str(data.get("amount"))
+            denom = data.get("denom")
+            if not address or not amount.isdigit() or not denom:
+                self._send(400, {"error":"address, amount (int), denom required"})
+                return
+            coin = f"{amount}{denom}"
+            cmd = [
+                "thornode","tx","bank","send", KEY_NAME, address, coin,
+                "--chain-id", CHAIN_ID,
+                "--node", NODE_URL,
+                "--keyring-backend", KEYRING_BACKEND,
+                "--gas","auto",
+                "--gas-adjustment","1.3",
+                "--fees","500000rune",
+                "-y","--broadcast-mode","block"
+            ]
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if res.returncode != 0:
+                self._send(500, {"error":"tx failed","stderr":res.stderr})
+                return
+            self._send(200, {"ok":True,"tx":res.stdout})
+        except Exception as e:
+            self._send(500, {"error":str(e)})
+
+if __name__ == "__main__":
+    # Import faucet key from /tmp/mnemonic if missing
+    try:
+        check = subprocess.run(
+            ["thornode","keys","show",KEY_NAME,"--keyring-backend",KEYRING_BACKEND],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        if check.returncode != 0:
+            mn = open("/tmp/mnemonic","r").read().strip()
+            imp = subprocess.run(
+                ["thornode","keys","add",KEY_NAME,"--recover","--keyring-backend",KEYRING_BACKEND],
+                input=mn + "\n",
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+    except Exception:
+        pass
+    server = HTTPServer(("0.0.0.0", PORT), Handler)
+    server.serve_forever()
