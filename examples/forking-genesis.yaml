@@ -3,12 +3,12 @@ chains:
     type: thorchain
     chain_id: thorchain-localnet
     app_version: "3.11.0"
-    initial_height: 23010393
+    initial_height: 23010004
     genesis_delay: 5
     
     forking:
       enabled: true
-      image: "tiljordan/thornode-forking:1.0.15"  # Image with genesis.json at /tmp/genesis.json
+      image: "tiljordan/thornode-forking:1.0.17"
     
     consensus:
       block_max_bytes: 22020096
@@ -22,7 +22,7 @@ chains:
     participants:
       - type: full
         count: 1
-        image: "tiljordan/thornode-forking:1.0.15"  # Use image with contract address genesis fix
+        image: "tiljordan/thornode-forking:1.0.17"  # Use image with contract address genesis fix
         account_balance: 1000000000000
         bond_amount: 500000000000
         min_cpu: 500
