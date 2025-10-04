@@ -45,7 +45,7 @@ def launch_faucet(plan, chain_name, chain_id, mnemonic, transfer_amount):
                 "/tmp/mnemonic": mnemonic_file,
                 "/app": faucet_server
             },
-            entrypoint = ["/usr/bin/env", "python3", "/app/faucet_server.py"],
+            entrypoint = ["/bin/sh","-lc","export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin && exec python3 /app/faucet_server.py"],
             env_vars = {
                 "CHAIN_ID": chain_id,
                 "NODE_URL": "http://{}:26657".format(first_node.ip_address),

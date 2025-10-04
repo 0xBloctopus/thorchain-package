@@ -2,13 +2,14 @@
 import json
 import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import os
+import os, shutil
 
 CHAIN_ID = os.environ.get("CHAIN_ID", "thorchain")
 NODE_URL = os.environ.get("NODE_URL", "http://localhost:26657")
 KEY_NAME = os.environ.get("KEY_NAME", "faucet")
 KEYRING_BACKEND = os.environ.get("KEYRING_BACKEND", "test")
 PORT = int(os.environ.get("PORT", "8090"))
+THORNODE_BIN = os.environ.get("THORNODE_BIN") or shutil.which("thornode") or next((p for p in ["/usr/local/bin/thornode","/usr/bin/thornode","/bin/thornode","/sbin/thornode","/usr/sbin/thornode"] if os.path.isfile(p) and os.access(p, os.X_OK)), None)
 
 class Handler(BaseHTTPRequestHandler):
     def _send(self, code, body):
@@ -22,6 +23,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, {"error":"not found"})
             return
         try:
+            if not THORNODE_BIN:
+                self._send(500, {"error":"thornode binary not found"})
+                return
             length = int(self.headers.get("Content-Length","0"))
             data = json.loads(self.rfile.read(length) or "{}")
             address = data.get("address")
@@ -32,7 +36,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             coin = f"{amount}{denom}"
             cmd = [
-                "thornode","tx","bank","send", KEY_NAME, address, coin,
+                THORNODE_BIN,"tx","bank","send", KEY_NAME, address, coin,
                 "--chain-id", CHAIN_ID,
                 "--node", NODE_URL,
                 "--keyring-backend", KEYRING_BACKEND,
@@ -50,19 +54,19 @@ class Handler(BaseHTTPRequestHandler):
             self._send(500, {"error":str(e)})
 
 if __name__ == "__main__":
-    # Import faucet key from /tmp/mnemonic if missing
     try:
-        check = subprocess.run(
-            ["thornode","keys","show",KEY_NAME,"--keyring-backend",KEYRING_BACKEND],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-        if check.returncode != 0:
-            mn = open("/tmp/mnemonic","r").read().strip()
-            imp = subprocess.run(
-                ["thornode","keys","add",KEY_NAME,"--recover","--keyring-backend",KEYRING_BACKEND],
-                input=mn + "\n",
+        if THORNODE_BIN:
+            check = subprocess.run(
+                [THORNODE_BIN,"keys","show",KEY_NAME,"--keyring-backend",KEYRING_BACKEND],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
+            if check.returncode != 0:
+                mn = open("/tmp/mnemonic","r").read().strip()
+                subprocess.run(
+                    [THORNODE_BIN,"keys","add",KEY_NAME,"--recover","--keyring-backend",KEYRING_BACKEND],
+                    input=mn + "\n",
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                )
     except Exception:
         pass
     server = HTTPServer(("0.0.0.0", PORT), Handler)
