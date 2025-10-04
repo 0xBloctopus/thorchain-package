@@ -351,29 +351,61 @@ fi
                 "-lc",
                 """
 set -e
-API="https://thornode.ninerealms.com/cosmos/bank/v1beta1/supply?pagination.limit=500"
-curl -sS -H "x-cosmos-block-height: %s" "$API" -o /tmp/supply.json
 python3 - << 'PY'
-import json
+import json, collections
 from pathlib import Path
-faucet = %r
-amt = %d
-s = json.loads(Path("/tmp/supply.json").read_text() or "{}")
-supply = s.get("supply", [])
-denoms = [entry.get("denom") for entry in supply if "denom" in entry]
-coins = [{"amount": str(amt), "denom": d} for d in denoms]
-faucet_balance = {"address": faucet, "coins": coins}
-Path("/tmp/faucet_balances_fragment.json").write_text(json.dumps(faucet_balance, separators=(",",":")))
-# updated supply entries with faucet amount added
-updated=[]
-for entry in supply:
+
+# Merge existing balances with faucet balance and compute full supply
+def load_list(path):
+    p=Path(path)
+    if not p.exists():
+        return []
+    txt=p.read_text().strip()
+    if not txt:
+        return []
     try:
-        updated.append({"denom": entry["denom"], "amount": str(int(entry["amount"]) + int(amt))})
+        return json.loads(f"[{txt}]")
     except Exception:
-        updated.append(entry)
-Path("/tmp/supply_fragment.json").write_text(json.dumps(updated, separators=(",",":")))
+        try:
+            j=json.loads(txt)
+            return j if isinstance(j, list) else [j]
+        except Exception:
+            return []
+
+bl = load_list("/tmp/balances_fragment.json")
+fb = None
+p_fb = Path("/tmp/faucet_balances_fragment.json")
+if p_fb.exists():
+    try:
+        fb = json.loads(p_fb.read_text().strip() or "{}")
+    except Exception:
+        fb = None
+if isinstance(fb, dict) and fb.get("address"):
+    addr = fb["address"]
+    bl = [b for b in bl if not (isinstance(b, dict) and b.get("address")==addr)]
+    bl.append(fb)
+
+Path("/tmp/merged_balances_fragment.json").write_text(", ".join(json.dumps(x, separators=(',',':')) for x in bl))
+
+tot = collections.defaultdict(int)
+for b in bl:
+    if not isinstance(b, dict): 
+        continue
+    coins = b.get("coins", [])
+    if not isinstance(coins, list):
+        continue
+    for c in coins:
+        try:
+            d = str(c["denom"])
+            a = int(str(c["amount"]))
+            tot[d] += a
+        except Exception:
+            pass
+
+supply = [{"denom": d, "amount": str(tot[d])} for d in sorted(tot)]
+Path("/tmp/supply_fragment.json").write_text(json.dumps(supply, separators=(",",":")))
 PY
-""" % (faucet_height, faucet_addr, faucet_amount),
+"""
             ],
         ),
         description="Prepare faucet multi-denom balances and updated supply",
