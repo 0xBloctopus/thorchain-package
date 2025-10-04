@@ -113,79 +113,6 @@ def launch_single_node(plan, chain_cfg):
         description="Copy forked genesis into config",
     )
 
-    # e.1) Apply cumulative KV diffs to genesis if present
-    plan.exec(
-        node_name,
-        ExecRecipe(
-            command=[
-                "/bin/sh",
-                "-lc",
-                """
-set -e
-CFG=%(cfg)s/genesis.json
-if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ "$(tr -d '\\n\\r' </tmp/diff.json)" != "{}" ]; then
-python3 - << 'PY'
-import json, re
-from pathlib import Path
-
-cfg = Path("%(cfg)s/genesis.json")
-diff_path = Path("/tmp/diff.json")
-text = cfg.read_text()
-raw = diff_path.read_text().strip()
-
-# Try to support two shapes:
-# 1) {"patches":[{"key_path":"app_state.bank","value_json":{...}}, ...]}
-# 2) {"app_state.bank": {...}, "app_state.auth": {...}, ...}
-targets = []
-try:
-    d = json.loads(raw)
-    if isinstance(d, dict) and "patches" in d and isinstance(d["patches"], list):
-        for e in d["patches"]:
-            key = e.get("key_path")
-            val = e.get("value_json", e.get("value"))
-            if not key or val is None: continue
-            # ignore some keys
-            ign = ["thorchain.node_accounts","thorchain.vault_membership","thorchain.vault_memberships","consensus"]
-            if any(key.startswith(x) for x in ign): continue
-            # collapse to module when inside app_state
-            if key.startswith("app_state."):
-                module = key.split(".")[1]
-                targets.append((module, json.dumps(val, separators=(",",":"))))
-    elif isinstance(d, dict):
-        for key, val in d.items():
-            if not isinstance(key, str): continue
-            ign = ["thorchain.node_accounts","thorchain.vault_membership","thorchain.vault_memberships","consensus"]
-            if any(key.startswith(x) for x in ign): continue
-            if key.startswith("app_state.") and val is not None:
-                module = key.split(".")[1]
-                targets.append((module, json.dumps(val, separators=(",",":"))))
-except Exception:
-    targets = []
-
-# Build sed script replacing entire app_state.<module> object
-def esc(s: str) -> str:
-    return s.replace("\\\\","\\\\\\\\").replace("/", "\\/").replace("&","\\&").replace("$","\\$")
-
-sed_lines = []
-seen = set()
-for module, payload in targets:
-    if module in seen: continue
-    seen.add(module)
-    # pattern: "<module>": { ... } under app_state; make it non-greedy
-    pattern = f'\\"{module}\\":[ ]*\\{{.*?\\}}'
-    sed_lines.append(f"/{pattern}/ s//\\\"{module}\\\":{esc(payload)}/")
-
-Path("/tmp/genesis_patch.sed").write_text("\\n".join(sed_lines))
-PY
-if [ -s /tmp/genesis_patch.sed ]; then
-  sed -i -E -f /tmp/genesis_patch.sed "$CFG"
-fi
-fi
-""" % {"cfg": config_folder}
-            ],
-        ),
-        description="Apply KV diffs to genesis via single sed pass",
-    )
 
     # d) Get SECP bech32 pk
     secp_res = plan.exec(
@@ -345,6 +272,74 @@ fi
         description="Fetch diffs meta and cumulative KV patch",
     )
 
+    # e.1) Apply cumulative KV diffs to genesis if present (after fetching diffs)
+    plan.exec(
+        node_name,
+        ExecRecipe(
+            command=[
+                "/bin/sh",
+                "-lc",
+                """
+set -e
+CFG=%(cfg)s/genesis.json
+if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ "$(tr -d '\\n\\r' </tmp/diff.json)" != "{}" ]; then
+python3 - << 'PY'
+import json, re
+from pathlib import Path
+
+cfg = Path("%(cfg)s/genesis.json")
+diff_path = Path("/tmp/diff.json")
+raw = diff_path.read_text().strip()
+
+# Try to support two shapes:
+# 1) {"patches":[{"key_path":"app_state.bank","value_json":{...}}, ...]}
+# 2) {"app_state.bank": {...}, "app_state.auth": {...}, ...}
+targets = []
+try:
+    d = json.loads(raw)
+    if isinstance(d, dict) and "patches" in d and isinstance(d["patches"], list):
+        for e in d["patches"]:
+            key = e.get("key_path")
+            val = e.get("value_json", e.get("value"))
+            if not key or val is None: continue
+            ign = ["thorchain.node_accounts","thorchain.vault_membership","thorchain.vault_memberships","consensus"]
+            if any(key.startswith(x) for x in ign): continue
+            if key.startswith("app_state."):
+                module = key.split(".")[1]
+                targets.append((module, json.dumps(val, separators=(",",":"))))
+    elif isinstance(d, dict):
+        for key, val in d.items():
+            if not isinstance(key, str): continue
+            ign = ["thorchain.node_accounts","thorchain.vault_membership","thorchain.vault_memberships","consensus"]
+            if any(key.startswith(x) for x in ign): continue
+            if key.startswith("app_state.") and val is not None:
+                module = key.split(".")[1]
+                targets.append((module, json.dumps(val, separators=(",",":"))))
+except Exception:
+    targets = []
+
+def esc(s: str) -> str:
+    return s.replace("\\\\","\\\\\\\\").replace("/", "\\/").replace("&","\\&").replace("$","\\$")
+
+sed_lines = []
+seen = set()
+for module, payload in targets:
+    if module in seen: continue
+    seen.add(module)
+    pattern = f'\\"{module}\\":[ ]*\\{{.*?\\}}'
+    sed_lines.append(f"/{pattern}/ s//\\\"{module}\\\":{esc(payload)}/")
+
+Path("/tmp/genesis_patch.sed").write_text("\\n".join(sed_lines))
+PY
+if [ -s /tmp/genesis_patch.sed ]; then
+  sed -i -E -f /tmp/genesis_patch.sed "$CFG"
+fi
+fi
+""" % {"cfg": config_folder}
+            ],
+        ),
+        description="Apply KV diffs to genesis via single sed pass",
+    )
     faucet_height = str(chain_cfg.get("forking", {}).get("height", 23010004))
     plan.exec(
         node_name,
