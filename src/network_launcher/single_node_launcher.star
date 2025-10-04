@@ -258,14 +258,30 @@ if [ -z "$REQ" ] || [ "$REQ" = "0" ]; then REQ="$BASE"; fi
 if [ "$REQ" -lt "$MIN" ] || [ "$REQ" -gt "$MAX" ]; then
   echo "Requested height $REQ out of bounds [$MIN,$MAX]" >&2; exit 1
 fi
+MODE="none"
 if [ "$REQ" -le "$BASE" ]; then
   echo "{}" > /tmp/diff.json
+  MODE="none"
   touch /tmp/diff.ready
 else
-  curl -sS --compressed "$API_BASE/since/$REQ" -o /tmp/diff.json
+  # Try high-level app_state patch endpoint first
+  if curl -sS --compressed "$API_BASE/patch/since/$REQ" -o /tmp/diff.json; then
+    if grep -q '"app_state"' /tmp/diff.json; then
+      MODE="appstate"
+    else
+      # Fallback to legacy
+      curl -sS --compressed "$API_BASE/since/$REQ" -o /tmp/diff.json
+      MODE="legacy"
+    fi
+  else
+    # Fallback to legacy on fetch error
+    curl -sS --compressed "$API_BASE/since/$REQ" -o /tmp/diff.json
+    MODE="legacy"
+  fi
   touch /tmp/diff.ready
 fi
 if [ -f /tmp/diff.json ]; then
+  echo "MODE=$MODE" >> /tmp/diff.info
   echo -n "diff_size=" >> /tmp/diff.info
   wc -c </tmp/diff.json >> /tmp/diff.info
   head -c 200 /tmp/diff.json > /tmp/diff.head || true
