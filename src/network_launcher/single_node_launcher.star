@@ -443,73 +443,7 @@ ac=$(tr -d '\\n\\r' </tmp/accounts_fragment.json)
 bl=$(tr -d '\\n\\r' </tmp/balances_fragment.json)
 rs=$(tr -d '\\n\\r' </tmp/rune_supply.txt)
 
-# Build faucet balance and recompute supply inline, then merge into balances string
-python3 - << 'PY'
-import json, collections
-from pathlib import Path
-faucet_addr = %(faucet_addr)r
-faucet_amount = %(faucet_amount)d
-
-def load_list_text(path):
-    p=Path(path)
-    if not p.exists(): return ""
-    return p.read_text().strip()
-
-def load_list(path):
-    txt = load_list_text(path)
-    if not txt: return []
-    try:
-        return json.loads(f"[{txt}]")
-    except Exception:
-        try:
-            j=json.loads(txt)
-            return j if isinstance(j, list) else [j]
-        except Exception:
-            return []
-
-# existing balances
-bl = load_list("/tmp/balances_fragment.json")
-
-# faucet coins from denom set in existing balances
-denoms=set()
-for b in bl:
-    if isinstance(b, dict):
-        for c in (b.get("coins") or []):
-            try:
-                denoms.add(str(c["denom"]))
-            except Exception:
-                pass
-coins = [{"amount": str(faucet_amount), "denom": d} for d in sorted(denoms)]
-faucet_balance = {"address": faucet_addr, "coins": coins}
-
-# merge unique by address
-addr = faucet_balance["address"]
-bl = [b for b in bl if not (isinstance(b, dict) and b.get("address")==addr)]
-bl.append(faucet_balance)
-
-# compute supply from merged balances
-tot = collections.defaultdict(int)
-for b in bl:
-    if not isinstance(b, dict): 
-        continue
-    for c in (b.get("coins") or []):
-        try:
-            tot[str(c["denom"])] += int(str(c["amount"]))
-        except Exception:
-            pass
-
-merged_balances_str = ", ".join(json.dumps(x, separators=(',',':')) for x in bl)
-supply_arr = [{"denom": d, "amount": str(tot[d])} for d in sorted(tot)]
-supply_str = json.dumps(supply_arr, separators=(",",":"))
-
-# emit for the shell to capture
-print("----BL_START----")
-print(merged_balances_str)
-print("----BL_END----")
-print("----SU_START----")
-print(supply_str)
-print("----SU_END----")
-PY
+# Build faucet balance and recompute supply inline via captured Python below
 
 # capture python outputs into vars bl and su
 py_out="$(python3 - << 'PY'
