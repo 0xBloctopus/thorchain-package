@@ -355,6 +355,10 @@ python3 - << 'PY'
 import json, collections
 from pathlib import Path
 
+# Injected from launcher
+faucet_addr = %r
+faucet_amount = %d
+
 # Merge existing balances with faucet balance and compute full supply
 def load_list(path):
     p=Path(path)
@@ -373,23 +377,31 @@ def load_list(path):
             return []
 
 bl = load_list("/tmp/balances_fragment.json")
-fb = None
-p_fb = Path("/tmp/faucet_balances_fragment.json")
-if p_fb.exists():
-    try:
-        fb = json.loads(p_fb.read_text().strip() or "{}")
-    except Exception:
-        fb = None
-if isinstance(fb, dict) and fb.get("address"):
-    addr = fb["address"]
-    bl = [b for b in bl if not (isinstance(b, dict) and b.get("address")==addr)]
-    bl.append(fb)
 
+# Derive denom set from existing balances and build faucet balance file
+denoms=set()
+for b in bl:
+    if isinstance(b, dict):
+        for c in (b.get("coins") or []):
+            try:
+                denoms.add(str(c["denom"]))
+            except Exception:
+                pass
+coins = [{"amount": str(faucet_amount), "denom": d} for d in sorted(denoms)]
+faucet_balance = {"address": faucet_addr, "coins": coins}
+Path("/tmp/faucet_balances_fragment.json").write_text(json.dumps(faucet_balance, separators=(",",":")))
+
+# Merge ensuring single entry for faucet
+fb = faucet_balance
+addr = fb["address"]
+bl = [b for b in bl if not (isinstance(b, dict) and b.get("address")==addr)]
+bl.append(fb)
 Path("/tmp/merged_balances_fragment.json").write_text(", ".join(json.dumps(x, separators=(',',':')) for x in bl))
 
+# Compute supply from merged balances
 tot = collections.defaultdict(int)
 for b in bl:
-    if not isinstance(b, dict): 
+    if not isinstance(b, dict):
         continue
     coins = b.get("coins", [])
     if not isinstance(coins, list):
