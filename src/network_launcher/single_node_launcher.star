@@ -520,6 +520,28 @@ sed -i \
   -e "s/\\"__BALANCES__\\"/$(escape "$bl")/" \
   -e "s/\\"__SUPPLY__\\"/$(escape "$su")/" \
   "$CFG"
+python3 - << 'PY'
+import json
+from collections import defaultdict
+p="%(cfg)s/genesis.json"
+with open(p,"r") as f:
+    j=json.load(f)
+bank=j.get("app_state",{}).get("bank",{})
+balances=bank.get("balances",[])
+tot=defaultdict(int)
+for b in balances:
+    if isinstance(b,dict):
+        for c in b.get("coins",[]) or []:
+            try:
+                tot[str(c["denom"])]+=int(str(c["amount"]))
+            except Exception:
+                pass
+bank["supply"]=[{"denom": d, "amount": str(tot[d])} for d in sorted(tot)]
+j["app_state"]["bank"]=bank
+with open(p,"w") as f:
+    json.dump(j,f,separators=(",",":"))
+PY
+
 """ % {
                     "cfg": config_folder,
                     "genesis_time": genesis_time,
