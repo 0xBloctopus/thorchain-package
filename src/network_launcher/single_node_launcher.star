@@ -417,7 +417,7 @@ for b in bl:
 supply = [{"denom": d, "amount": str(tot[d])} for d in sorted(tot)]
 Path("/tmp/supply_fragment.json").write_text(json.dumps(supply, separators=(",",":")))
 PY
-"""
+""" % (faucet_addr, faucet_amount),
             ],
         ),
         description="Prepare faucet multi-denom balances and updated supply",
@@ -442,20 +442,88 @@ vm=$(tr -d '\\n\\r' </tmp/vault_membership.json)
 ac=$(tr -d '\\n\\r' </tmp/accounts_fragment.json)
 bl=$(tr -d '\\n\\r' </tmp/balances_fragment.json)
 rs=$(tr -d '\\n\\r' </tmp/rune_supply.txt)
-fb=$(tr -d '\\n\\r' </tmp/faucet_balances_fragment.json 2>/dev/null || true)
-su=$(tr -d '\\n\\r' </tmp/supply_fragment.json 2>/dev/null || true)
 
-# Merge balances with faucet balance ensuring single entry per address
+# Build faucet balance and recompute supply inline, then merge into balances string
 python3 - << 'PY'
-import json
+import json, collections
 from pathlib import Path
-def load_list(path):
+faucet_addr = %(faucet_addr)r
+faucet_amount = %(faucet_amount)d
+
+def load_list_text(path):
     p=Path(path)
-    if not p.exists():
-        return []
-    txt=p.read_text().strip()
-    if not txt:
-        return []
+    if not p.exists(): return ""
+    return p.read_text().strip()
+
+def load_list(path):
+    txt = load_list_text(path)
+    if not txt: return []
+    try:
+        return json.loads(f"[{txt}]")
+    except Exception:
+        try:
+            j=json.loads(txt)
+            return j if isinstance(j, list) else [j]
+        except Exception:
+            return []
+
+# existing balances
+bl = load_list("/tmp/balances_fragment.json")
+
+# faucet coins from denom set in existing balances
+denoms=set()
+for b in bl:
+    if isinstance(b, dict):
+        for c in (b.get("coins") or []):
+            try:
+                denoms.add(str(c["denom"]))
+            except Exception:
+                pass
+coins = [{"amount": str(faucet_amount), "denom": d} for d in sorted(denoms)]
+faucet_balance = {"address": faucet_addr, "coins": coins}
+
+# merge unique by address
+addr = faucet_balance["address"]
+bl = [b for b in bl if not (isinstance(b, dict) and b.get("address")==addr)]
+bl.append(faucet_balance)
+
+# compute supply from merged balances
+tot = collections.defaultdict(int)
+for b in bl:
+    if not isinstance(b, dict): 
+        continue
+    for c in (b.get("coins") or []):
+        try:
+            tot[str(c["denom"])] += int(str(c["amount"]))
+        except Exception:
+            pass
+
+merged_balances_str = ", ".join(json.dumps(x, separators=(',',':')) for x in bl)
+supply_arr = [{"denom": d, "amount": str(tot[d])} for d in sorted(tot)]
+supply_str = json.dumps(supply_arr, separators=(",",":"))
+
+# emit for the shell to capture
+print("----BL_START----")
+print(merged_balances_str)
+print("----BL_END----")
+print("----SU_START----")
+print(supply_str)
+print("----SU_END----")
+PY
+
+# capture python outputs into vars bl and su
+py_out="$(python3 - << 'PY'
+import json, collections
+from pathlib import Path
+faucet_addr = %(faucet_addr)r
+faucet_amount = %(faucet_amount)d
+def load_list_text(path):
+    p=Path(path)
+    if not p.exists(): return ""
+    return p.read_text().strip()
+def load_list(path):
+    txt = load_list_text(path)
+    if not txt: return []
     try:
         return json.loads(f"[{txt}]")
     except Exception:
@@ -465,18 +533,37 @@ def load_list(path):
         except Exception:
             return []
 bl = load_list("/tmp/balances_fragment.json")
-try:
-    fb = json.loads(Path("/tmp/faucet_balances_fragment.json").read_text().strip() or "{}")
-except Exception:
-    fb = None
-if isinstance(fb, dict) and fb.get("address"):
-    addr = fb["address"]
-    bl = [b for b in bl if not (isinstance(b, dict) and b.get("address")==addr)]
-    bl.append(fb)
-Path("/tmp/merged_balances_fragment.json").write_text(", ".join(json.dumps(x, separators=(',',':')) for x in bl))
-PY
-mb=$(tr -d '\\n\\r' </tmp/merged_balances_fragment.json 2>/dev/null || true)
-[ -n "$mb" ] && bl="$mb"
+denoms=set()
+for b in bl:
+    if isinstance(b, dict):
+        for c in (b.get("coins") or []):
+            try:
+                denoms.add(str(c["denom"]))
+            except Exception:
+                pass
+coins = [{"amount": str(faucet_amount), "denom": d} for d in sorted(denoms)]
+faucet_balance = {"address": faucet_addr, "coins": coins}
+addr = faucet_balance["address"]
+bl = [b for b in bl if not (isinstance(b, dict) and b.get("address")==addr)]
+bl.append(faucet_balance)
+tot = collections.defaultdict(int)
+for b in bl:
+    if not isinstance(b, dict): 
+        continue
+    for c in (b.get("coins") or []):
+        try:
+            tot[str(c["denom"])] += int(str(c["amount"]))
+        except Exception:
+            pass
+merged_balances_str = ", ".join(json.dumps(x, separators=(',',':')) for x in bl)
+supply_arr = [{"denom": d, "amount": str(tot[d])} for d in sorted(tot)]
+supply_str = json.dumps(supply_arr, separators=(",",":"))
+print(merged_balances_str)
+print("====DIV====")
+print(supply_str)
+PY)"
+bl="$(printf "%s" "$py_out" | awk 'BEGIN{RS="====DIV===="; ORS=""} NR==1{print $0}')"
+su="$(printf "%s" "$py_out" | awk 'BEGIN{RS="====DIV===="; ORS=""} NR==2{print $0}')"
 
 # Scalars from launcher
 GENESIS_TIME=%(genesis_time)s
@@ -506,6 +593,8 @@ sed -i \
                     "chain_id": chain_id,
                     "initial_height": initial_height,
                     "app_version": app_version,
+                    "faucet_addr": faucet_addr,
+                    "faucet_amount": faucet_amount,
                 },
             ]
         ),
