@@ -248,9 +248,12 @@ set -e
 API_BASE="%s"
 REQ="%s"
 BASE=23010003
-curl -sS "$API_BASE/meta" -o /tmp/diffs_meta.json
+curl -sS --compressed "$API_BASE/meta" -o /tmp/diffs_meta.json
 MIN=$(sed -n 's/.*"min_height":[ ]*\\([0-9]*\\).*/\\1/p' /tmp/diffs_meta.json)
 MAX=$(sed -n 's/.*"max_height":[ ]*\\([0-9]*\\).*/\\1/p' /tmp/diffs_meta.json)
+: > /tmp/diff.info
+echo "API_BASE=$API_BASE" >> /tmp/diff.info
+echo "REQ=$REQ MIN=$MIN MAX=$MAX" >> /tmp/diff.info
 if [ -z "$REQ" ] || [ "$REQ" = "0" ]; then REQ="$BASE"; fi
 if [ "$REQ" -lt "$MIN" ] || [ "$REQ" -gt "$MAX" ]; then
   echo "Requested height $REQ out of bounds [$MIN,$MAX]" >&2; exit 1
@@ -259,8 +262,15 @@ if [ "$REQ" -le "$BASE" ]; then
   echo "{}" > /tmp/diff.json
   touch /tmp/diff.ready
 else
-  curl -sS "$API_BASE/since/$REQ" -o /tmp/diff.json
+  curl -sS --compressed "$API_BASE/since/$REQ" -o /tmp/diff.json
   touch /tmp/diff.ready
+fi
+if [ -f /tmp/diff.json ]; then
+  echo -n "diff_size=" >> /tmp/diff.info
+  wc -c </tmp/diff.json >> /tmp/diff.info
+  head -c 200 /tmp/diff.json > /tmp/diff.head || true
+else
+  echo "no diff.json" >> /tmp/diff.info
 fi
 """
                 % (
@@ -317,6 +327,16 @@ try:
                 targets.append((module, json.dumps(val, separators=(",",":"))))
 except Exception:
     targets = []
+
+# Write quick diagnostics: which modules targeted, or mark empty patch
+try:
+    from pathlib import Path as _P
+    if targets:
+        _P("/tmp/patch.modules").write_text("\\n".join(sorted(set(m for m,_ in targets))))
+    else:
+        _P("/tmp/patch.empty").write_text("1")
+except Exception:
+    pass
 
 def esc(s: str) -> str:
     return s.replace("\\\\","\\\\\\\\").replace("/", "\\/").replace("&","\\&").replace("$","\\$")
