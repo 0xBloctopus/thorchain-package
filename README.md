@@ -162,7 +162,6 @@ chains:
     type: thorchain
     chain_id: "thorchain-mainnet-v1"
     app_version: "3.11.0"
-    initial_height: 23010004
     forking:
       enabled: true
       image: "tiljordan/thornode-forking:1.0.17"
@@ -178,6 +177,7 @@ chains:
     additional_services:
       - faucet
 ```
+Note: initial_height is computed automatically as forking.height + 1.
 
 ### Custom Services
 Deploy specific auxiliary services:
