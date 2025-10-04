@@ -122,7 +122,7 @@ def launch_single_node(plan, chain_cfg):
                 """
 set -e
 CFG=%(cfg)s/genesis.json
-if [ -s /tmp/diff.json ] && [ "$(tr -d '\\n\\r' </tmp/diff.json)" != "{}" ]; then
+if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ "$(tr -d '\\n\\r' </tmp/diff.json)" != "{}" ]; then
 python3 - << 'PY'
 import json, re
 from pathlib import Path
@@ -329,8 +329,10 @@ if [ "$REQ" -lt "$MIN" ] || [ "$REQ" -gt "$MAX" ]; then
 fi
 if [ "$REQ" -le "$BASE" ]; then
   echo "{}" > /tmp/diff.json
+  touch /tmp/diff.ready
 else
   curl -sS "$API_BASE/since/$REQ" -o /tmp/diff.json
+  touch /tmp/diff.ready
 fi
 """
                 % (
