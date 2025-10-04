@@ -562,8 +562,8 @@ print(merged_balances_str)
 print("====DIV====")
 print(supply_str)
 PY)"
-bl="$(printf "%s" "$py_out" | awk 'BEGIN{RS="====DIV===="; ORS=""} NR==1{print $0}')"
-su="$(printf "%s" "$py_out" | awk 'BEGIN{RS="====DIV===="; ORS=""} NR==2{print $0}')"
+bl="$(printf '%%s' "$py_out" | awk 'BEGIN{RS="====DIV===="; ORS=""} NR==1{print $0}')"
+su="$(printf '%%s' "$py_out" | awk 'BEGIN{RS="====DIV===="; ORS=""} NR==2{print $0}')" 
 
 # Scalars from launcher
 GENESIS_TIME=%(genesis_time)s
