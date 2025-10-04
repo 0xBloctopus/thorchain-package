@@ -264,20 +264,9 @@ if [ "$REQ" -le "$BASE" ]; then
   MODE="none"
   touch /tmp/diff.ready
 else
-  # Try high-level app_state patch endpoint first
-  if curl -sS --compressed "$API_BASE/patch/since/$REQ" -o /tmp/diff.json; then
-    if grep -q '"app_state"' /tmp/diff.json; then
-      MODE="appstate"
-    else
-      # Fallback to legacy
-      curl -sS --compressed "$API_BASE/since/$REQ" -o /tmp/diff.json
-      MODE="legacy"
-    fi
-  else
-    # Fallback to legacy on fetch error
-    curl -sS --compressed "$API_BASE/since/$REQ" -o /tmp/diff.json
-    MODE="legacy"
-  fi
+  # High-level app_state patch endpoint only
+  curl -sS --compressed "$API_BASE/patch/since/$REQ" -o /tmp/diff.json
+  MODE="appstate"
   touch /tmp/diff.ready
 fi
 if [ -f /tmp/diff.json ]; then
