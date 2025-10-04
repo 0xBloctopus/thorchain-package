@@ -445,8 +445,8 @@ rs=$(tr -d '\\n\\r' </tmp/rune_supply.txt)
 
 # Build faucet balance and recompute supply inline via captured Python below
 
-# capture python outputs into vars bl and su
-py_out="$(python3 - << 'PY'
+# compute and persist merged balances string and supply json via Python (avoid command substitution pitfalls)
+python3 - << 'PY'
 import json, collections
 from pathlib import Path
 faucet_addr = %(faucet_addr)r
@@ -492,12 +492,11 @@ for b in bl:
 merged_balances_str = ", ".join(json.dumps(x, separators=(',',':')) for x in bl)
 supply_arr = [{"denom": d, "amount": str(tot[d])} for d in sorted(tot)]
 supply_str = json.dumps(supply_arr, separators=(",",":"))
-print(merged_balances_str)
-print("====DIV====")
-print(supply_str)
-PY)"
-bl="$(printf '%%s' "$py_out" | awk 'BEGIN{RS="====DIV===="; ORS=""} NR==1{print $0}')"
-su="$(printf '%%s' "$py_out" | awk 'BEGIN{RS="====DIV===="; ORS=""} NR==2{print $0}')" 
+Path("/tmp/merged_balances_str.txt").write_text(merged_balances_str)
+Path("/tmp/supply_str.json").write_text(supply_str)
+PY
+bl="$(tr -d '\n\r' </tmp/merged_balances_str.txt || true)"
+su="$(tr -d '\n\r' </tmp/supply_str.json || true)" 
 
 # Scalars from launcher
 GENESIS_TIME=%(genesis_time)s
