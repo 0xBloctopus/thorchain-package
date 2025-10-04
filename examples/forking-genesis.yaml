@@ -3,7 +3,6 @@ chains:
     type: thorchain
     chain_id: thorchain-localnet
     app_version: "3.11.0"
-    initial_height: 23010004
     genesis_delay: 5
 
     forking:

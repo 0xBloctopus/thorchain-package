@@ -13,7 +13,8 @@ def launch_single_node(plan, chain_cfg):
     faucet_amount = int(chain_cfg["faucet"]["faucet_amount"])
 
     app_version = chain_cfg["app_version"]
-    initial_height = str(chain_cfg.get("initial_height", 1))
+    req_height = int(forking_config.get("height", 0))
+    initial_height = str(req_height + 1) if req_height > 0 else str(chain_cfg.get("initial_height", 1))
 
     # Calculate genesis time
     genesis_delay = chain_cfg.get("genesis_delay", 5)
