@@ -287,6 +287,23 @@ fi
         description="Fetch diffs meta and cumulative KV patch",
     )
 
+    # e.1) Apply cumulative KV diffs using uploaded merge_patch.py (no heredoc)
+    plan.upload_files(
+        source="./src/network_launcher/merge_patch.py",
+        name="merge-patch",
+    )
+    plan.exec(
+        node_name,
+        ExecRecipe(
+            command=[
+                "/bin/sh",
+                "-lc",
+                "set -e; kurtosis copy --from-files-artifact merge-patch /tmp/merge_patch.py; chmod +x /tmp/merge_patch.py; if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ \"$(tr -d '\\n\\r' </tmp/diff.json)\" != \"{}\" ]; then python3 /tmp/merge_patch.py; if [ -s /tmp/genesis_patch.sed ]; then sed -i -E -f /tmp/genesis_patch.sed /root/.thornode/config/genesis.json; fi; fi",
+            ],
+        ),
+        description="Upload and apply merge_patch.py to patch genesis in one sed pass",
+    )
+
     # e.1) Apply cumulative KV diffs to genesis if present (after fetching diffs)
     plan.exec(
         node_name,
