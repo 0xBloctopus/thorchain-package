@@ -389,7 +389,7 @@ rs=$(tr -d '\\n\\r' </tmp/rune_supply.txt)
 su=$(tr -d '\\n\\r' </tmp/supply_fragment.json)
 
 # escape function
-escape() { printf '%s' "$1" | sed -e 's/[\\/&]/\\\\&/g'; }
+escape() { printf '%%s' "$1" | sed -e 's/[\\/&]/\\\\&/g'; }
 
 # Apply replacements including __SUPPLY__
 sed -i \
