@@ -299,60 +299,161 @@ set -e
 CFG=%(cfg)s/genesis.json
 if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ "$(tr -d '\\n\\r' </tmp/diff.json)" != "{}" ]; then
 python3 - << 'PY'
-import json, re
+import json
 from pathlib import Path
 
 cfg = Path("%(cfg)s/genesis.json")
-diff_path = Path("/tmp/diff.json")
-raw = diff_path.read_text().strip()
+d = json.loads(Path("/tmp/diff.json").read_text())
 
-# Try to support two shapes:
-# 1) {"patches":[{"key_path":"app_state.bank","value_json":{...}}, ...]}
-# 2) {"app_state.bank": {...}, "app_state.auth": {...}, ...}
-targets = []
-try:
-    d = json.loads(raw)
-    if isinstance(d, dict) and "patches" in d and isinstance(d["patches"], list):
-        for e in d["patches"]:
-            key = e.get("key_path")
-            val = e.get("value_json", e.get("value"))
-            if not key or val is None: continue
-            ign = ["thorchain.node_accounts","thorchain.vault_membership","thorchain.vault_memberships","consensus"]
-            if any(key.startswith(x) for x in ign): continue
-            if key.startswith("app_state."):
-                module = key.split(".")[1]
-                targets.append((module, json.dumps(val, separators=(",",":"))))
-    elif isinstance(d, dict):
-        for key, val in d.items():
-            if not isinstance(key, str): continue
-            ign = ["thorchain.node_accounts","thorchain.vault_membership","thorchain.vault_memberships","consensus"]
-            if any(key.startswith(x) for x in ign): continue
-            if key.startswith("app_state.") and val is not None:
-                module = key.split(".")[1]
-                targets.append((module, json.dumps(val, separators=(",",":"))))
-except Exception:
-    targets = []
+app = d.get("app_state") or {}
+g = json.loads(cfg.read_text())
 
-# Write quick diagnostics: which modules targeted, or mark empty patch
-try:
-    from pathlib import Path as _P
-    if targets:
-        _P("/tmp/patch.modules").write_text("\\n".join(sorted(set(m for m,_ in targets))))
-    else:
-        _P("/tmp/patch.empty").write_text("1")
-except Exception:
-    pass
+def ensure(obj, path, default):
+    cur = obj
+    for k in path[:-1]:
+        cur = cur.setdefault(k, {})
+    cur.setdefault(path[-1], default)
+
+ensure(g, ["app_state","auth","accounts"], [])
+ensure(g, ["app_state","bank","balances"], [])
+ensure(g, ["app_state","thorchain","mimirs"], [])
+ensure(g, ["app_state","thorchain","vaults"], [])
+ensure(g, ["app_state","thorchain","pools"], [])
+ensure(g, ["app_state","wasm","codes"], [])
+ensure(g, ["app_state","wasm","contracts"], [])
+
+mods_changed = set()
+
+def merge_accounts(g, patch):
+    accs = g["app_state"]["auth"]["accounts"]
+    idx = {a.get("account_number"): i for i, a in enumerate(accs)}
+    changed = False
+    for a in patch:
+        k = a.get("account_number")
+        if k in idx:
+            accs[idx[k]] = a
+        else:
+            accs.append(a)
+        changed = True
+    if changed:
+        mods_changed.add("auth")
+
+def merge_balances(g, patch):
+    bals = g["app_state"]["bank"]["balances"]
+    by_addr = {}
+    for b in bals:
+        coins = {}
+        for c in b.get("coins", []):
+            d = c.get("denom"); amt = c.get("amount")
+            if d is not None and amt is not None:
+                coins[d] = amt
+        by_addr[b.get("address","")] = coins
+    changed = False
+    for b in patch:
+        addr = b.get("address","")
+        coins = b.get("coins", [])
+        if addr not in by_addr:
+            by_addr[addr] = {}
+        for c in coins:
+            d = c.get("denom"); amt = c.get("amount")
+            if d is None or amt is None: continue
+            by_addr[addr][d] = amt
+            changed = True
+    if changed:
+        new_bals = []
+        for addr, cm in by_addr.items():
+            new_bals.append({"address": addr, "coins": [{"denom": d, "amount": a} for d, a in cm.items()]})
+        g["app_state"]["bank"]["balances"] = new_bals
+        mods_changed.add("bank")
+
+def replace_mimirs(g, patch):
+    g["app_state"]["thorchain"]["mimirs"] = patch
+    mods_changed.add("thorchain")
+
+def merge_vaults(g, patch):
+    vlist = g["app_state"]["thorchain"]["vaults"]
+    idx = {v.get("pub_key"): i for i, v in enumerate(vlist)}
+    try:
+        membership = json.loads(Path("/tmp/vault_membership.json").read_text())
+    except Exception:
+        membership = []
+    changed = False
+    for v in patch:
+        pk = v.get("pub_key")
+        if pk in idx:
+            existing = vlist[idx[pk]]
+            keep_membership = existing.get("membership", [])
+            nv = dict(v)
+            nv["membership"] = keep_membership
+            vlist[idx[pk]] = nv
+        else:
+            nv = dict(v)
+            nv["membership"] = membership
+            vlist.append(nv)
+        changed = True
+    if changed:
+        g["app_state"]["thorchain"]["vaults"] = vlist
+        mods_changed.add("thorchain")
+
+def replace_pools(g, patch):
+    g["app_state"]["thorchain"]["pools"] = patch
+    mods_changed.add("thorchain")
+
+def merge_codes(g, patch):
+    codes = g["app_state"]["wasm"]["codes"]
+    idx = {str(c.get("code_id")): i for i, c in enumerate(codes)}
+    changed = False
+    for c in patch:
+        cid = str(c.get("code_id"))
+        if cid in idx:
+            codes[idx[cid]] = c
+        else:
+            codes.append(c)
+        changed = True
+    if changed:
+        g["app_state"]["wasm"]["codes"] = codes
+        mods_changed.add("wasm")
+
+def merge_contracts(g, patch):
+    cs = g["app_state"]["wasm"]["contracts"]
+    idx = {c.get("contract_address"): i for i, c in enumerate(cs)}
+    changed = False
+    for c in patch:
+        addr = c.get("contract_address")
+        if addr in idx:
+            cs[idx[addr]] = c
+        else:
+            cs.append(c)
+        changed = True
+    if changed:
+        g["app_state"]["wasm"]["contracts"] = cs
+        mods_changed.add("wasm")
+
+if isinstance(app.get("auth",{}).get("accounts"), list):
+    merge_accounts(g, app["auth"]["accounts"])
+if isinstance(app.get("bank",{}).get("balances"), list):
+    merge_balances(g, app["bank"]["balances"])
+th = app.get("thorchain",{})
+if isinstance(th.get("mimirs"), list):
+    replace_mimirs(g, th["mimirs"])
+if isinstance(th.get("vaults"), list):
+    merge_vaults(g, th["vaults"])
+if isinstance(th.get("pools"), list):
+    replace_pools(g, th["pools"])
+w = app.get("wasm",{})
+if isinstance(w.get("codes"), list):
+    merge_codes(g, w["codes"])
+if isinstance(w.get("contracts"), list):
+    merge_contracts(g, w["contracts"])
 
 def esc(s: str) -> str:
-    return s.replace("\\\\","\\\\\\\\").replace("/", "\\/").replace("&","\\&").replace("$","\\$")
+    return s.replace("\\","\\\\").replace("/", "\\/").replace("&","\\&").replace("$","\\$")
 
 sed_lines = []
-seen = set()
-for module, payload in targets:
-    if module in seen: continue
-    seen.add(module)
-    pattern = f'\\"{module}\\":[ ]*\\{{.*?\\}}'
-    sed_lines.append(f"/{pattern}/ s//\\\"{module}\\\":{esc(payload)}/")
+for mod in sorted(mods_changed):
+    payload = json.dumps(g["app_state"][mod], separators=(",",":"))
+    pattern = f'\\"{mod}\\":[ ]*\\{{.*?\\}}'
+    sed_lines.append(f"/{pattern}/ s//\\\"{mod}\\\":{esc(payload)}/")
 
 Path("/tmp/genesis_patch.sed").write_text("\\n".join(sed_lines))
 PY
