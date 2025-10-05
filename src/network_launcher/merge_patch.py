@@ -316,6 +316,8 @@ def merge_contracts(g, patch, mods_changed):
     def sanitize_contract_info(ci):
         if not isinstance(ci, dict):
             return ci
+        if "contract" in ci:
+            ci.pop("contract", None)
         for key in ("admin", "ibc_port_id"):
             if key in ci:
                 ci[key] = _normalize_string_field(ci[key])
@@ -379,6 +381,8 @@ def main():
             for i, c in enumerate(all_cs):
                 if isinstance(c, dict) and isinstance(c.get("contract_info"), dict):
                     ci = c["contract_info"]
+                    if "contract" in ci:
+                        ci.pop("contract", None)
                     for key in ("admin", "ibc_port_id"):
                         if key in ci:
                             ci[key] = _normalize_string_field(ci[key])
