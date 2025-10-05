@@ -19,9 +19,12 @@ def esc(s):
 
 def merge_accounts(g, patch, mods_changed):
     accs = g["app_state"]["auth"]["accounts"]
-    idx = {a.get("account_number"): i for i, a in enumerate(accs)}
+    accs = [a for a in accs if isinstance(a, dict)]
+    idx = {a.get("account_number"): i for i, a in enumerate(accs) if isinstance(a.get("account_number"), (str,int))}
     changed = False
     for a in patch:
+        if not isinstance(a, dict):
+            continue
         k = a.get("account_number")
         if k in idx:
             accs[idx[k]] = a
@@ -29,6 +32,7 @@ def merge_accounts(g, patch, mods_changed):
             accs.append(a)
         changed = True
     if changed:
+        g["app_state"]["auth"]["accounts"] = accs
         mods_changed.add("auth")
 
 def merge_balances(g, patch, mods_changed):
@@ -119,9 +123,12 @@ def merge_pools(g, patch, mods_changed):
 
 def merge_codes(g, patch, mods_changed):
     codes = g["app_state"]["wasm"]["codes"]
+    codes = [c for c in codes if isinstance(c, dict)]
     idx = {str(c.get("code_id")): i for i, c in enumerate(codes)}
     changed = False
     for c in patch:
+        if not isinstance(c, dict):
+            continue
         cid = str(c.get("code_id"))
         if cid in idx:
             codes[idx[cid]] = c
@@ -134,9 +141,12 @@ def merge_codes(g, patch, mods_changed):
 
 def merge_contracts(g, patch, mods_changed):
     cs = g["app_state"]["wasm"]["contracts"]
+    cs = [c for c in cs if isinstance(c, dict)]
     idx = {c.get("contract_address"): i for i, c in enumerate(cs)}
     changed = False
     for c in patch:
+        if not isinstance(c, dict):
+            continue
         addr = c.get("contract_address")
         if addr in idx:
             cs[idx[addr]] = c
