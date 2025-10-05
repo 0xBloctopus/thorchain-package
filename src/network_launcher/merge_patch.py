@@ -47,6 +47,32 @@ def _destringify_primitives_inplace(v):
             except Exception:
                 return v
         return v
+def _stringify_amounts_inplace(v, keys=None):
+    if keys is None:
+        keys = {
+            "amount",
+            "LP_units",
+            "synth_units",
+            "balance_asset",
+            "balance_rune",
+            "pending_inbound_asset",
+            "pending_inbound_rune",
+            "reserve",
+        }
+    if isinstance(v, dict):
+        for k in list(v.keys()):
+            val = v[k]
+            if k in keys and isinstance(val, (int, float)):
+                v[k] = str(int(val)) if isinstance(val, float) and val.is_integer() else str(val)
+            else:
+                _stringify_amounts_inplace(val, keys)
+        return v
+    if isinstance(v, list):
+        for i in range(len(v)):
+            _stringify_amounts_inplace(v[i], keys)
+        return v
+    return v
+
     return v
 def _coerce_thorchain_lists_inplace(app_state):
     tc = (app_state or {}).get("thorchain")
@@ -368,6 +394,7 @@ def main():
     _coerce_thorchain_lists_inplace(g["app_state"])
     _coerce_thorchain_nested_inplace(g["app_state"])
     g["app_state"] = _destringify_primitives_inplace(g["app_state"])
+    _stringify_amounts_inplace(g["app_state"])
     CFG.write_text(json.dumps(g, separators=(",",":")))
     print("mods_changed=%d applied_json=1" % (len(mods_changed)))
 
