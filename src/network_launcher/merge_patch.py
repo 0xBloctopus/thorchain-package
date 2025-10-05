@@ -173,9 +173,14 @@ def merge_contracts(g, patch, mods_changed):
         mods_changed.add("wasm")
 
 def main():
-    if not DIFF.exists() or DIFF.read_text().strip() in ("", "{}"):
+    if not DIFF.exists():
+        print("diff_absent")
         return
-    d = json.loads(DIFF.read_text())
+    diff_txt = DIFF.read_text().strip()
+    if diff_txt in ("", "{}"):
+        print("diff_empty")
+        return
+    d = json.loads(diff_txt)
     app = d.get("app_state") or {}
     g = json.loads(CFG.read_text())
 
@@ -207,6 +212,7 @@ def main():
         merge_contracts(g, w["contracts"], mods_changed)
 
     if not mods_changed:
+        print("mods_changed=0")
         return
 
     sed_lines = []
@@ -216,6 +222,7 @@ def main():
         sed_lines.append('/' + pattern + '/ s//"' + mod + '":' + esc(payload) + '/')
 
     SED.write_text("\n".join(sed_lines))
+    print("mods_changed=%d" % len(mods_changed))
 
 if __name__ == "__main__":
     main()

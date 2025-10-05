@@ -304,18 +304,6 @@ fi
         description="Apply merge_patch.py to patch genesis in one sed pass",
     )
 
-    # Neutralize legacy heredoc patcher: ensure diff.json is "{}" so its guard fails
-    plan.exec(
-        node_name,
-        ExecRecipe(
-            command=[
-                "/bin/sh",
-                "-lc",
-                "set -e; if [ -f /tmp/diff.ready ]; then printf '{}' >/tmp/diff.json; fi",
-            ],
-        ),
-        description="Disable heredoc patcher by emptying diff.json",
-    )
 
     # e.1) Apply cumulative KV diffs to genesis if present (after fetching diffs)
     plan.exec(
