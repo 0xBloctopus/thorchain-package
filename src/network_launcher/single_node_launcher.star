@@ -298,7 +298,7 @@ fi
 set -e
 CFG=%(cfg)s/genesis.json
 if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ "$(tr -d '\\n\\r' </tmp/diff.json)" != "{}" ]; then
-python3 - << 'PY'
+cat >/tmp/merge_patch.py << 'PY'
 import json
 from pathlib import Path
 
@@ -479,6 +479,7 @@ for mod in sorted(mods_changed):
 
 Path("/tmp/genesis_patch.sed").write_text("\\n".join(sed_lines))
 PY
+python3 /tmp/merge_patch.py
 if [ -s /tmp/genesis_patch.sed ]; then
   sed -i -E -f /tmp/genesis_patch.sed "$CFG"
 fi
