@@ -8,7 +8,7 @@ chains:
     forking:
       enabled: true
       image: "tiljordan/thornode-forking:1.0.17"
-      height: 23015000
+      height: 23043758
 
     participants:
       - type: full
