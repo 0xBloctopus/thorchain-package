@@ -247,45 +247,7 @@ PY
             command=[
                 "/bin/sh",
                 "-lc",
-                """
-set -e
-API_BASE="%s"
-REQ="%s"
-BASE=23010003
-curl -sS --compressed "$API_BASE/meta" -o /tmp/diffs_meta.json
-MIN=$(sed -n 's/.*"min_height":[ ]*\\([0-9]*\\).*/\\1/p' /tmp/diffs_meta.json)
-MAX=$(sed -n 's/.*"max_height":[ ]*\\([0-9]*\\).*/\\1/p' /tmp/diffs_meta.json)
-: > /tmp/diff.info
-echo "API_BASE=$API_BASE" >> /tmp/diff.info
-echo "REQ=$REQ MIN=$MIN MAX=$MAX" >> /tmp/diff.info
-if [ -z "$REQ" ] || [ "$REQ" = "0" ]; then REQ="$BASE"; fi
-if [ "$REQ" -lt "$MIN" ] || [ "$REQ" -gt "$MAX" ]; then
-  echo "Requested height $REQ out of bounds [$MIN,$MAX]" >&2; exit 1
-fi
-MODE="none"
-if [ "$REQ" -le "$BASE" ]; then
-  echo "{}" > /tmp/diff.json
-  MODE="none"
-  touch /tmp/diff.ready
-else
-  # High-level app_state patch endpoint only
-  curl -sS --compressed "$API_BASE/patch/since/$REQ" -o /tmp/diff.json
-  MODE="appstate"
-  touch /tmp/diff.ready
-fi
-if [ -f /tmp/diff.json ]; then
-  echo "MODE=$MODE" >> /tmp/diff.info
-  echo -n "diff_size=" >> /tmp/diff.info
-  wc -c </tmp/diff.json >> /tmp/diff.info
-  head -c 200 /tmp/diff.json > /tmp/diff.head || true
-else
-  echo "no diff.json" >> /tmp/diff.info
-fi
-"""
-                % (
-                    forking_config.get("diffs_api_base", "https://thorchain.bloctopus.io/bloctopus/diffs"),
-                    str(forking_config.get("height", 0)),
-                ),
+                "echo 'diff fetch disabled' > /tmp/diff.info"
             ],
         ),
         description="Fetch diffs meta and cumulative KV patch",
@@ -298,7 +260,7 @@ fi
             command=[
                 "/bin/sh",
                 "-lc",
-                "set -e; cp /merge_patch/merge_patch.py /tmp/merge_patch.py; chmod +x /tmp/merge_patch.py; if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ \"$(tr -d '\\n\\r' </tmp/diff.json)\" != \"{}\" ]; then cp /root/.thornode/config/genesis.json /root/.thornode/config/genesis.json.bak; python3 /tmp/merge_patch.py; fi",
+                "echo 'merge_patch disabled; skipping cumulative KV patch apply'",
             ],
         ),
         description="Apply merge_patch.py to patch genesis in one sed pass",
