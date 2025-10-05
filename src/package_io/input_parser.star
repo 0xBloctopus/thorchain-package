@@ -113,14 +113,15 @@ def input_parser(input_args=None):
             else:
                 fail("Unsupported chain type: " + chain_type)
 
+            # Apply defaults to chain
+            chain_config = apply_chain_defaults(chain, defaults)
+
             # Derive initial_height again post-defaults to ensure consistency
             if chain_config.get("forking", {}).get("enabled", False):
                 fh = chain_config["forking"].get("height", 0)
                 if (type(fh) == "int" and fh > 0):
                     chain_config["initial_height"] = fh + 1
 
-            # Apply defaults to chain
-            chain_config = apply_chain_defaults(chain, defaults)
             result["chains"].append(chain_config)
 
     return result
