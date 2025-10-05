@@ -37,23 +37,38 @@ def merge_accounts(g, patch, mods_changed):
 
 def merge_balances(g, patch, mods_changed):
     bals = g["app_state"]["bank"]["balances"]
+    bals = [b for b in bals if isinstance(b, dict)]
     by_addr = {}
     for b in bals:
-        coins = {}
-        for c in b.get("coins", []):
+        addr = b.get("address", "")
+        if not addr:
+            continue
+        cur_coins = b.get("coins", [])
+        if not isinstance(cur_coins, list):
+            cur_coins = []
+        coins_map = {}
+        for c in cur_coins:
+            if not isinstance(c, dict):
+                continue
             d = c.get("denom"); amt = c.get("amount")
             if d is not None and amt is not None:
-                coins[d] = amt
-        addr = b.get("address","")
-        if addr:
-            by_addr[addr] = coins
+                coins_map[d] = amt
+        by_addr[addr] = coins_map
     changed = False
     for b in patch:
+        if not isinstance(b, dict):
+            continue
         addr = b.get("address","")
-        coins = b.get("coins", [])
+        if not addr:
+            continue
         if addr not in by_addr:
             by_addr[addr] = {}
+        coins = b.get("coins", [])
+        if not isinstance(coins, list):
+            coins = []
         for c in coins:
+            if not isinstance(c, dict):
+                continue
             d = c.get("denom"); amt = c.get("amount")
             if d is None or amt is None:
                 continue
