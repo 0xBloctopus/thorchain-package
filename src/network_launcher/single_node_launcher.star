@@ -289,7 +289,7 @@ fi
 
     # e.1) Apply cumulative KV diffs using uploaded merge_patch.py (no heredoc)
     plan.upload_files(
-        src="./src/network_launcher/merge_patch.py",
+        src="/src/network_launcher/merge_patch.py",
         name="merge-patch",
     )
     plan.exec(
