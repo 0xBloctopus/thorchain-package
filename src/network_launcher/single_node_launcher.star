@@ -65,6 +65,9 @@ def launch_single_node(plan, chain_cfg):
         "prometheus": PortSpec(number=26660, transport_protocol="TCP", wait=None),
     }
 
+    # Upload merge script to be mounted at service creation
+    merge_artifact = plan.upload_files(src="/src/network_launcher/merge_patch.py")
+
     node_name = "{}-node".format(chain_name)
 
     # Phase A: add service with sleep entrypoint
@@ -76,6 +79,7 @@ def launch_single_node(plan, chain_cfg):
             entrypoint=["/bin/sh", "-lc", "sleep infinity"],
             min_cpu=participant.get("min_cpu", 500),
             min_memory=participant.get("min_memory", 512),
+            files={"merge_patch": merge_artifact},
         ),
     )
 
@@ -287,24 +291,17 @@ fi
         description="Fetch diffs meta and cumulative KV patch",
     )
 
-    # e.1) Apply cumulative KV diffs using uploaded merge_patch.py (no heredoc)
-    plan.upload_files(
-        src="/src/network_launcher/merge_patch.py",
-        name="merge-patch",
-    )
+    # e.1) Apply cumulative KV diffs using uploaded merge_patch.py (mounted via ServiceConfig.files)
     plan.exec(
         node_name,
         ExecRecipe(
             command=[
                 "/bin/sh",
                 "-lc",
-                "set -e; cp /_files/merge_patch.py /tmp/merge_patch.py; chmod +x /tmp/merge_patch.py; if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ \"$(tr -d '\\n\\r' </tmp/diff.json)\" != \"{}\" ]; then python3 /tmp/merge_patch.py; if [ -s /tmp/genesis_patch.sed ]; then sed -i -E -f /tmp/genesis_patch.sed /root/.thornode/config/genesis.json; fi; fi",
+                "set -e; cp /merge_patch/merge_patch.py /tmp/merge_patch.py; chmod +x /tmp/merge_patch.py; if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ \"$(tr -d '\\n\\r' </tmp/diff.json)\" != \"{}\" ]; then python3 /tmp/merge_patch.py; if [ -s /tmp/genesis_patch.sed ]; then sed -i -E -f /tmp/genesis_patch.sed /root/.thornode/config/genesis.json; fi; fi",
             ],
-            artifact_mounts={
-                "merge-patch": "/_files",
-            },
         ),
-        description="Upload and apply merge_patch.py to patch genesis in one sed pass",
+        description="Apply merge_patch.py to patch genesis in one sed pass",
     )
 
     # Neutralize legacy heredoc patcher: ensure diff.json is "{}" so its guard fails
