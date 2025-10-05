@@ -215,19 +215,8 @@ def main():
         print("mods_changed=0")
         return
 
-    sed_lines = []
-    for mod in sorted(mods_changed):
-        payload = json.dumps(g["app_state"][mod], separators=(",",":"))
-        anyblock = r'[\\s\\S]*?'
-        pattern = '"%s"[ ]*:[ ]*(\\{%s\\}|\\[%s\\])' % (mod, anyblock, anyblock)
-        sed_lines.append('/' + pattern + '/ s//"' + mod + '":' + esc(payload) + '/')
-
-    if not sed_lines:
-        print("mods_changed=%d sed_rules=0" % len(mods_changed))
-        return
-
-    SED.write_text("\n".join(sed_lines))
-    print("mods_changed=%d sed_rules=%d" % (len(mods_changed), len(sed_lines)))
+    CFG.write_text(json.dumps(g, separators=(",",":")))
+    print("mods_changed=%d applied_json=1" % (len(mods_changed)))
 
 if __name__ == "__main__":
     main()

@@ -298,7 +298,7 @@ fi
             command=[
                 "/bin/sh",
                 "-lc",
-                "set -e; cp /merge_patch/merge_patch.py /tmp/merge_patch.py; chmod +x /tmp/merge_patch.py; if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ \"$(tr -d '\\n\\r' </tmp/diff.json)\" != \"{}\" ]; then python3 /tmp/merge_patch.py; if [ -s /tmp/genesis_patch.sed ]; then sed -i -E -f /tmp/genesis_patch.sed /root/.thornode/config/genesis.json; fi; fi",
+                "set -e; cp /merge_patch/merge_patch.py /tmp/merge_patch.py; chmod +x /tmp/merge_patch.py; if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ \"$(tr -d '\\n\\r' </tmp/diff.json)\" != \"{}\" ]; then cp /root/.thornode/config/genesis.json /root/.thornode/config/genesis.json.bak; python3 /tmp/merge_patch.py; python3 - <<'PY'\nimport json,sys\np='/root/.thornode/config/genesis.json'\njson.load(open(p))\nprint('genesis_json_ok')\nPY\n; fi",
             ],
         ),
         description="Apply merge_patch.py to patch genesis in one sed pass",
@@ -310,7 +310,7 @@ fi
             command=[
                 "/bin/sh",
                 "-lc",
-                "set -e; echo '=== diff.info ==='; [ -f /tmp/diff.info ] && sed -n '1,50p' /tmp/diff.info || echo 'no diff.info'; echo '=== sed status ==='; if [ -s /tmp/genesis_patch.sed ]; then echo -n 'rules='; wc -l </tmp/genesis_patch.sed; sed -n '1,20p' /tmp/genesis_patch.sed; else echo 'no sed'; fi"
+                "set -e; echo '=== diff.info ==='; [ -f /tmp/diff.info ] && sed -n '1,50p' /tmp/diff.info || echo 'no diff.info'; echo '=== genesis parse check ==='; python3 - <<'PY'\nimport json,sys\np='/root/.thornode/config/genesis.json'\ntry:\n  json.load(open(p))\n  print('ok')\nexcept Exception as e:\n  print('bad:', e)\nPY"
             ],
         ),
         description="Log diff/meta sizes and sed rule head"
