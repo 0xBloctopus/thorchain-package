@@ -298,7 +298,7 @@ fi
             command=[
                 "/bin/sh",
                 "-lc",
-                "set -e; cp /merge_patch/merge_patch.py /tmp/merge_patch.py; chmod +x /tmp/merge_patch.py; if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ \"$(tr -d '\\n\\r' </tmp/diff.json)\" != \"{}\" ]; then cp /root/.thornode/config/genesis.json /root/.thornode/config/genesis.json.bak; python3 /tmp/merge_patch.py; python3 - <<'PY'\nimport json,sys\np='/root/.thornode/config/genesis.json'\njson.load(open(p))\nprint('genesis_json_ok')\nPY\n; fi",
+                "set -e; cp /merge_patch/merge_patch.py /tmp/merge_patch.py; chmod +x /tmp/merge_patch.py; if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ \"$(tr -d '\\n\\r' </tmp/diff.json)\" != \"{}\" ]; then cp /root/.thornode/config/genesis.json /root/.thornode/config/genesis.json.bak; python3 /tmp/merge_patch.py; fi",
             ],
         ),
         description="Apply merge_patch.py to patch genesis in one sed pass",
