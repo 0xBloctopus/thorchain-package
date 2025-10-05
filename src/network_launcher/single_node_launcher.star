@@ -298,8 +298,11 @@ fi
             command=[
                 "/bin/sh",
                 "-lc",
-                "set -e; kurtosis copy --from-files-artifact merge-patch /tmp/merge_patch.py; chmod +x /tmp/merge_patch.py; if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ \"$(tr -d '\\n\\r' </tmp/diff.json)\" != \"{}\" ]; then python3 /tmp/merge_patch.py; if [ -s /tmp/genesis_patch.sed ]; then sed -i -E -f /tmp/genesis_patch.sed /root/.thornode/config/genesis.json; fi; fi",
+                "set -e; cp /_files/merge_patch.py /tmp/merge_patch.py; chmod +x /tmp/merge_patch.py; if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ \"$(tr -d '\\n\\r' </tmp/diff.json)\" != \"{}\" ]; then python3 /tmp/merge_patch.py; if [ -s /tmp/genesis_patch.sed ]; then sed -i -E -f /tmp/genesis_patch.sed /root/.thornode/config/genesis.json; fi; fi",
             ],
+            artifact_mounts={
+                "merge-patch": "/_files",
+            },
         ),
         description="Upload and apply merge_patch.py to patch genesis in one sed pass",
     )
