@@ -19,16 +19,13 @@ def esc(s):
 
 def _normalize_string_field(v):
     if isinstance(v, str):
-        s = v.lstrip()
-        if s[:1] in "[{":
-            try:
-                dec = json.loads(v)
-                if isinstance(dec, (str, int, float, bool)) or dec is None:
-                    return str(dec) if not isinstance(dec, str) else dec
-                return ""
-            except Exception:
-                return v
-        return v
+        try:
+            dec = json.loads(v)
+            if isinstance(dec, (str, int, float, bool)) or dec is None:
+                return str(dec) if not isinstance(dec, str) else dec
+            return ""
+        except Exception:
+            return v
     return ""
 
 def _destringify_primitives_inplace(v):
