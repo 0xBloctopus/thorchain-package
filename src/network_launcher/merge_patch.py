@@ -53,15 +53,96 @@ def _coerce_thorchain_lists_inplace(app_state):
     if not isinstance(tc, dict):
         return
     expected_lists = [
-        "pools","liquidity_providers","observe_chains","observed_tx_in","observed_tx_out",
-        "tx_outs","ban_voters","ragnarok","reserve_contributors","node_accounts","vaults",
-        "tss_keysign_fail","tss_keygen_metric","keysign_metrics","keygen_metrics","network_fees",
-        "swap_queue","outbound_txes","chain_contracts","codes","contracts","mimirs","mimir_nodes",
+        "pools",
+        "liquidity_providers",
+        "observed_tx_in_voters",
+        "observed_tx_out_voters",
+        "tx_outs",
+        "node_accounts",
+        "vaults",
+        "reserve_contributors",
+        "last_chain_heights",
+        "adv_swap_queue_items",
+        "network_fees",
+        "chain_contracts",
+        "THORNames",
+        "mimirs",
+        "bond_providers",
+        "loans",
+        "streaming_swaps",
+        "swap_queue_items",
+        "swapper_clout",
+        "trade_accounts",
+        "trade_units",
+        "outbound_fee_withheld_rune",
+        "outbound_fee_spent_rune",
+        "rune_providers",
+        "secured_assets",
+        "nodeMimirs",
+        "loan_total_collateral",
+        "affiliate_collectors",
+        "tcy_claimers",
+        "tcy_stakers",
     ]
     for k in expected_lists:
         v = tc.get(k)
         if not isinstance(v, list):
             tc[k] = []
+def _coerce_thorchain_nested_inplace(app_state):
+    tc = (app_state or {}).get("thorchain")
+    if not isinstance(tc, dict):
+        return
+    vlist = tc.get("vaults")
+    if isinstance(vlist, list):
+        for v in vlist:
+            if isinstance(v, dict):
+                m = v.get("membership")
+                if isinstance(m, str):
+                    s = m.strip()
+                    try:
+                        dec = json.loads(s) if s[:1] in "[{" else []
+                    except Exception:
+                        dec = []
+                    if not isinstance(dec, list):
+                        dec = []
+                    v["membership"] = dec
+                elif not isinstance(m, list):
+                    v["membership"] = []
+    for key in ("observed_tx_in_voters", "observed_tx_out_voters"):
+        voters = tc.get(key)
+        if isinstance(voters, list):
+            for rec in voters:
+                if isinstance(rec, dict):
+                    txs = rec.get("txs")
+                    if isinstance(txs, str):
+                        s = txs.strip()
+                        try:
+                            dec = json.loads(s) if s[:1] in "[{" else []
+                        except Exception:
+                            dec = []
+                        if not isinstance(dec, list):
+                            dec = []
+                        rec["txs"] = dec
+                    elif not isinstance(txs, list):
+                        rec["txs"] = []
+    plist = tc.get("pools")
+    if isinstance(plist, list):
+        for p in plist:
+            if isinstance(p, dict):
+                for k in ("pending_inbound_tx", "pending_outbound_tx", "pending_liquidity"):
+                    val = p.get(k)
+                    if isinstance(val, str):
+                        s = val.strip()
+                        try:
+                            dec = json.loads(s) if s[:1] in "[{" else []
+                        except Exception:
+                            dec = []
+                        if not isinstance(dec, list):
+                            dec = []
+                        p[k] = dec
+                    elif val is not None and not isinstance(val, list):
+                        p[k] = []
+
 
 
 def merge_accounts(g, patch, mods_changed):
@@ -285,6 +366,7 @@ def main():
         return
 
     _coerce_thorchain_lists_inplace(g["app_state"])
+    _coerce_thorchain_nested_inplace(g["app_state"])
     g["app_state"] = _destringify_primitives_inplace(g["app_state"])
     CFG.write_text(json.dumps(g, separators=(",",":")))
     print("mods_changed=%d applied_json=1" % (len(mods_changed)))
