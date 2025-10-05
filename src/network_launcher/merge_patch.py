@@ -254,6 +254,19 @@ def main():
         merge_codes(g, w["codes"], mods_changed)
     if isinstance(w.get("contracts"), list):
         merge_contracts(g, w["contracts"], mods_changed)
+    try:
+        all_cs = g["app_state"]["wasm"]["contracts"]
+        if isinstance(all_cs, list):
+            for i, c in enumerate(all_cs):
+                if isinstance(c, dict) and isinstance(c.get("contract_info"), dict):
+                    ci = c["contract_info"]
+                    for key in ("admin", "ibc_port_id"):
+                        if key in ci:
+                            ci[key] = _normalize_string_field(ci[key])
+            mods_changed.add("wasm")
+    except Exception:
+        pass
+
 
     if not mods_changed:
         print("mods_changed=0")
