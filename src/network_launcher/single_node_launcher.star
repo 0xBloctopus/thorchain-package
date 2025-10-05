@@ -303,211 +303,21 @@ fi
         ),
         description="Apply merge_patch.py to patch genesis in one sed pass",
     )
-
-
-    # e.1) Apply cumulative KV diffs to genesis if present (after fetching diffs)
+    # e.2) Minimal observability for fetch/merge
     plan.exec(
         node_name,
         ExecRecipe(
             command=[
                 "/bin/sh",
                 "-lc",
-                """
-set -e
-CFG=%(cfg)s/genesis.json
-if [ -f /tmp/diff.ready ] && [ -s /tmp/diff.json ] && [ "$(tr -d '\\n\\r' </tmp/diff.json)" != "{}" ]; then
-cat >/tmp/merge_patch.py << 'PY'
-import json
-from pathlib import Path
-
-cfg = Path("%(cfg)s/genesis.json")
-d = json.loads(Path("/tmp/diff.json").read_text())
-
-app = d.get("app_state") or {}
-g = json.loads(cfg.read_text())
-
-def ensure(obj, path, default):
-    cur = obj
-    for k in path[:-1]:
-        cur = cur.setdefault(k, {})
-    cur.setdefault(path[-1], default)
-
-ensure(g, ["app_state","auth","accounts"], [])
-ensure(g, ["app_state","bank","balances"], [])
-ensure(g, ["app_state","thorchain","mimirs"], [])
-ensure(g, ["app_state","thorchain","vaults"], [])
-ensure(g, ["app_state","thorchain","pools"], [])
-ensure(g, ["app_state","wasm","codes"], [])
-ensure(g, ["app_state","wasm","contracts"], [])
-
-mods_changed = set()
-
-def merge_accounts(g, patch):
-    accs = g["app_state"]["auth"]["accounts"]
-    idx = {a.get("account_number"): i for i, a in enumerate(accs)}
-    changed = False
-    for a in patch:
-        k = a.get("account_number")
-        if k in idx:
-            accs[idx[k]] = a
-        else:
-            accs.append(a)
-        changed = True
-    if changed:
-        mods_changed.add("auth")
-
-def merge_balances(g, patch):
-    bals = g["app_state"]["bank"]["balances"]
-    by_addr = {}
-    for b in bals:
-        coins = {}
-        for c in b.get("coins", []):
-            d = c.get("denom"); amt = c.get("amount")
-            if d is not None and amt is not None:
-                coins[d] = amt
-        by_addr[b.get("address","")] = coins
-    changed = False
-    for b in patch:
-        addr = b.get("address","")
-        coins = b.get("coins", [])
-        if addr not in by_addr:
-            by_addr[addr] = {}
-        for c in coins:
-            d = c.get("denom"); amt = c.get("amount")
-            if d is None or amt is None: continue
-            by_addr[addr][d] = amt
-            changed = True
-    if changed:
-        new_bals = []
-        for addr, cm in by_addr.items():
-            new_bals.append({"address": addr, "coins": [{"denom": d, "amount": a} for d, a in cm.items()]})
-        g["app_state"]["bank"]["balances"] = new_bals
-        mods_changed.add("bank")
-
-def merge_mimirs(g, patch):
-    cur = g["app_state"]["thorchain"]["mimirs"]
-    idx = {m.get("key"): i for i, m in enumerate(cur) if isinstance(m, dict)}
-    changed = False
-    for m in patch:
-        k = m.get("key")
-        if k in idx:
-            cur[idx[k]] = m
-        else:
-            cur.append(m)
-        changed = True
-    if changed:
-        g["app_state"]["thorchain"]["mimirs"] = cur
-        mods_changed.add("thorchain")
-
-def merge_vaults(g, patch):
-    vlist = g["app_state"]["thorchain"]["vaults"]
-    idx = {v.get("pub_key"): i for i, v in enumerate(vlist)}
-    try:
-        membership = json.loads(Path("/tmp/vault_membership.json").read_text())
-    except Exception:
-        membership = []
-    changed = False
-    for v in patch:
-        pk = v.get("pub_key")
-        if pk in idx:
-            existing = vlist[idx[pk]]
-            keep_membership = existing.get("membership", [])
-            nv = dict(v)
-            nv["membership"] = keep_membership
-            vlist[idx[pk]] = nv
-        else:
-            nv = dict(v)
-            nv["membership"] = membership
-            vlist.append(nv)
-        changed = True
-    if changed:
-        g["app_state"]["thorchain"]["vaults"] = vlist
-        mods_changed.add("thorchain")
-
-def merge_pools(g, patch):
-    cur = g["app_state"]["thorchain"]["pools"]
-    idx = {p.get("asset"): i for i, p in enumerate(cur) if isinstance(p, dict)}
-    changed = False
-    for p in patch:
-        a = p.get("asset")
-        if a in idx:
-            cur[idx[a]] = p
-        else:
-            cur.append(p)
-        changed = True
-    if changed:
-        g["app_state"]["thorchain"]["pools"] = cur
-        mods_changed.add("thorchain")
-
-def merge_codes(g, patch):
-    codes = g["app_state"]["wasm"]["codes"]
-    idx = {str(c.get("code_id")): i for i, c in enumerate(codes)}
-    changed = False
-    for c in patch:
-        cid = str(c.get("code_id"))
-        if cid in idx:
-            codes[idx[cid]] = c
-        else:
-            codes.append(c)
-        changed = True
-    if changed:
-        g["app_state"]["wasm"]["codes"] = codes
-        mods_changed.add("wasm")
-
-def merge_contracts(g, patch):
-    cs = g["app_state"]["wasm"]["contracts"]
-    idx = {c.get("contract_address"): i for i, c in enumerate(cs)}
-    changed = False
-    for c in patch:
-        addr = c.get("contract_address")
-        if addr in idx:
-            cs[idx[addr]] = c
-        else:
-            cs.append(c)
-        changed = True
-    if changed:
-        g["app_state"]["wasm"]["contracts"] = cs
-        mods_changed.add("wasm")
-
-if isinstance(app.get("auth",{}).get("accounts"), list):
-    merge_accounts(g, app["auth"]["accounts"])
-if isinstance(app.get("bank",{}).get("balances"), list):
-    merge_balances(g, app["bank"]["balances"])
-th = app.get("thorchain",{})
-if isinstance(th.get("mimirs"), list):
-    merge_mimirs(g, th["mimirs"])
-if isinstance(th.get("vaults"), list):
-    merge_vaults(g, th["vaults"])
-if isinstance(th.get("pools"), list):
-    merge_pools(g, th["pools"])
-w = app.get("wasm",{})
-if isinstance(w.get("codes"), list):
-    merge_codes(g, w["codes"])
-if isinstance(w.get("contracts"), list):
-    merge_contracts(g, w["contracts"])
-
-def esc(s):
-    b = chr(92)
-    return s.replace(b, b + b).replace('/', b + '/').replace('&', b + '&')
-
-sed_lines = []
-for mod in sorted(mods_changed):
-    payload = json.dumps(g["app_state"][mod], separators=(",",":"))
-    pattern = '"%%s":[ ]*\\{.*?\\}' %% mod
-    sed_lines.append('/' + pattern + '/ s//"' + mod + '":' + esc(payload) + '/')
-
-Path("/tmp/genesis_patch.sed").write_text("\\n".join(sed_lines))
-PY
-python3 /tmp/merge_patch.py
-if [ -s /tmp/genesis_patch.sed ]; then
-  sed -i -E -f /tmp/genesis_patch.sed "$CFG"
-fi
-fi
-""" % {"cfg": config_folder}
+                "set -e; echo '=== diff.info ==='; [ -f /tmp/diff.info ] && sed -n '1,50p' /tmp/diff.info || echo 'no diff.info'; echo '=== sed status ==='; if [ -s /tmp/genesis_patch.sed ]; then echo -n 'rules='; wc -l </tmp/genesis_patch.sed; sed -n '1,20p' /tmp/genesis_patch.sed; else echo 'no sed'; fi"
             ],
         ),
-        description="Apply KV diffs to genesis via single sed pass",
+        description="Log diff/meta sizes and sed rule head"
     )
+
+
+
     faucet_height = str(chain_cfg.get("forking", {}).get("height", 23010004))
     plan.exec(
         node_name,
