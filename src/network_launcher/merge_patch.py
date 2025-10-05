@@ -17,6 +17,41 @@ def esc(s):
     b = chr(92)
     return s.replace(b, b + b).replace('/', b + '/').replace('&', b + '&')
 
+def _normalize_string_field(v):
+    if isinstance(v, str):
+        s = v.lstrip()
+        if s[:1] in "[{":
+            try:
+                dec = json.loads(v)
+                if isinstance(dec, (str, int, float, bool)) or dec is None:
+                    return str(dec) if not isinstance(dec, str) else dec
+                return ""
+            except Exception:
+                return v
+        return v
+    return ""
+
+def _destringify_primitives_inplace(v):
+    if isinstance(v, dict):
+        for k in list(v.keys()):
+            v[k] = _destringify_primitives_inplace(v[k])
+        return v
+    if isinstance(v, list):
+        for i in range(len(v)):
+            v[i] = _destringify_primitives_inplace(v[i])
+        return v
+    if isinstance(v, str):
+        s = v.lstrip()
+        if s[:1] in "[{":
+            try:
+                dec = json.loads(v)
+                if isinstance(dec, (str, int, float, bool)) or dec is None:
+                    return dec
+            except Exception:
+                return v
+        return v
+    return v
+
 def merge_accounts(g, patch, mods_changed):
     accs = g["app_state"]["auth"]["accounts"]
     accs = [a for a in accs if isinstance(a, dict)]
@@ -159,10 +194,19 @@ def merge_contracts(g, patch, mods_changed):
     cs = [c for c in cs if isinstance(c, dict)]
     idx = {c.get("contract_address"): i for i, c in enumerate(cs)}
     changed = False
+    def sanitize_contract_info(ci):
+        if not isinstance(ci, dict):
+            return ci
+        for key in ("admin", "ibc_port_id"):
+            if key in ci:
+                ci[key] = _normalize_string_field(ci[key])
+        return ci
     for c in patch:
         if not isinstance(c, dict):
             continue
         addr = c.get("contract_address")
+        if "contract_info" in c:
+            c["contract_info"] = sanitize_contract_info(c["contract_info"])
         if addr in idx:
             cs[idx[addr]] = c
         else:
@@ -194,8 +238,8 @@ def main():
 
     mods_changed = set()
 
-    if isinstance(app.get("auth",{}).get("accounts"), list):
-        merge_accounts(g, app["auth"]["accounts"], mods_changed)
+    # if isinstance(app.get("auth",{}).get("accounts"), list):
+    #     merge_accounts(g, app["auth"]["accounts"], mods_changed)
     if isinstance(app.get("bank",{}).get("balances"), list):
         merge_balances(g, app["bank"]["balances"], mods_changed)
     th = app.get("thorchain",{})
@@ -215,6 +259,7 @@ def main():
         print("mods_changed=0")
         return
 
+    g["app_state"] = _destringify_primitives_inplace(g["app_state"])
     CFG.write_text(json.dumps(g, separators=(",",":")))
     print("mods_changed=%d applied_json=1" % (len(mods_changed)))
 
