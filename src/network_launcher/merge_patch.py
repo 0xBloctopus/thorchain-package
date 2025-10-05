@@ -48,6 +48,21 @@ def _destringify_primitives_inplace(v):
                 return v
         return v
     return v
+def _coerce_thorchain_lists_inplace(app_state):
+    tc = (app_state or {}).get("thorchain")
+    if not isinstance(tc, dict):
+        return
+    expected_lists = [
+        "pools","liquidity_providers","observe_chains","observed_tx_in","observed_tx_out",
+        "tx_outs","ban_voters","ragnarok","reserve_contributors","node_accounts","vaults",
+        "tss_keysign_fail","tss_keygen_metric","keysign_metrics","keygen_metrics","network_fees",
+        "swap_queue","outbound_txes","chain_contracts","codes","contracts","mimirs","mimir_nodes",
+    ]
+    for k in expected_lists:
+        v = tc.get(k)
+        if not isinstance(v, list):
+            tc[k] = []
+
 
 def merge_accounts(g, patch, mods_changed):
     accs = g["app_state"]["auth"]["accounts"]
@@ -269,6 +284,7 @@ def main():
         print("mods_changed=0")
         return
 
+    _coerce_thorchain_lists_inplace(g["app_state"])
     g["app_state"] = _destringify_primitives_inplace(g["app_state"])
     CFG.write_text(json.dumps(g, separators=(",",":")))
     print("mods_changed=%d applied_json=1" % (len(mods_changed)))
