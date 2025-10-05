@@ -336,6 +336,19 @@ def merge_contracts(g, patch, mods_changed):
     if changed:
         g["app_state"]["wasm"]["contracts"] = cs
         mods_changed.add("wasm")
+def _drop_contract_key_inplace(v):
+    if isinstance(v, dict):
+        if "contract" in v:
+            v.pop("contract", None)
+        for k in list(v.keys()):
+            _drop_contract_key_inplace(v[k])
+        return v
+    if isinstance(v, list):
+        for i in range(len(v)):
+            _drop_contract_key_inplace(v[i])
+        return v
+    return v
+
 
 def main():
     if not DIFF.exists():
@@ -399,6 +412,9 @@ def main():
     _coerce_thorchain_nested_inplace(g["app_state"])
     g["app_state"] = _destringify_primitives_inplace(g["app_state"])
     _stringify_amounts_inplace(g["app_state"])
+    wasm = g.get("app_state", {}).get("wasm")
+    if isinstance(wasm, (dict, list)):
+        _drop_contract_key_inplace(wasm)
     CFG.write_text(json.dumps(g, separators=(",",":")))
     print("mods_changed=%d applied_json=1" % (len(mods_changed)))
 
