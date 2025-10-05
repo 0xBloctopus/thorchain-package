@@ -302,76 +302,64 @@ PY
                 "-lc",
                 """
 set -e
+H=%(height)s
+curl -sS -H "x-cosmos-block-height: $H" "https://thornode.ninerealms.com/cosmos/bank/v1beta1/supply?pagination.limit=500" -o /tmp/supply.json
 python3 - << 'PY'
-import json, collections
+import json
 from pathlib import Path
-
-# Injected from launcher
-faucet_addr = %r
-faucet_amount = %d
-
-# Merge existing balances with faucet balance and compute full supply
-def load_list(path):
-    p=Path(path)
-    if not p.exists():
-        return []
-    txt=p.read_text().strip()
-    if not txt:
-        return []
-    try:
-        return json.loads(f"[{txt}]")
-    except Exception:
-        try:
-            j=json.loads(txt)
-            return j if isinstance(j, list) else [j]
-        except Exception:
-            return []
-
-bl = load_list("/tmp/balances_fragment.json")
-
-# Derive denom set from existing balances and build faucet balance file
-denoms=set()
-for b in bl:
-    if isinstance(b, dict):
-        for c in (b.get("coins") or []):
-            try:
-                denoms.add(str(c["denom"]))
-            except Exception:
-                pass
-coins = [{"amount": str(faucet_amount), "denom": d} for d in sorted(denoms)]
+faucet_addr = %(faucet_addr)r
+faucet_amount = %(faucet_amount)d
+# Read supply from ninerealms
+try:
+    s = json.loads(Path("/tmp/supply.json").read_text() or "{}")
+except Exception:
+    s = {}
+supply_list = s.get("supply", [])
+denoms = []
+for entry in supply_list:
+    if isinstance(entry, dict):
+        d = entry.get("denom")
+        if isinstance(d, str):
+            denoms.append(d)
+# Build faucet balance for all denoms
+coins = [{"amount": str(faucet_amount), "denom": d} for d in denoms]
 faucet_balance = {"address": faucet_addr, "coins": coins}
 Path("/tmp/faucet_balances_fragment.json").write_text(json.dumps(faucet_balance, separators=(",",":")))
-
-# Merge ensuring single entry for faucet
-fb = faucet_balance
-addr = fb["address"]
-bl = [b for b in bl if not (isinstance(b, dict) and b.get("address")==addr)]
-bl.append(fb)
-Path("/tmp/merged_balances_fragment.json").write_text(", ".join(json.dumps(x, separators=(',',':')) for x in bl))
-
-# Compute supply from merged balances
-tot = collections.defaultdict(int)
-for b in bl:
-    if not isinstance(b, dict):
-        continue
-    coins = b.get("coins", [])
-    if not isinstance(coins, list):
-        continue
-    for c in coins:
+# Merge into existing balances_fragment (ensure single faucet entry)
+arr = []
+try:
+    existing = Path("/tmp/balances_fragment.json").read_text().strip()
+    if existing:
         try:
-            d = str(c["denom"])
-            a = int(str(c["amount"]))
-            tot[d] += a
+            arr = json.loads(f"[{existing}]")
         except Exception:
-            pass
-
-supply = [{"denom": d, "amount": str(tot[d])} for d in sorted(tot)]
-Path("/tmp/supply_fragment.json").write_text(json.dumps(supply, separators=(",",":")))
+            j = json.loads(existing)
+            arr = j if isinstance(j, list) else [j]
+except Exception:
+    arr = []
+arr = [b for b in arr if not (isinstance(b, dict) and b.get("address")==faucet_balance["address"])]
+arr.append(faucet_balance)
+Path("/tmp/merged_balances_fragment.json").write_text(", ".join(json.dumps(x, separators=(",",":")) for x in arr))
+# Compute updated supply = upstream supply + faucet_amount per denom
+def add(a,b): 
+    try:
+        return str(int(a)+int(b))
+    except Exception:
+        return str(a)
+updated = []
+for entry in supply_list:
+    if not isinstance(entry, dict):
+        continue
+    d = entry.get("denom")
+    a = entry.get("amount")
+    if isinstance(d, str) and isinstance(a, (str,int)):
+        updated.append({"denom": d, "amount": add(str(a), str(faucet_amount))})
+Path("/tmp/supply_fragment.json").write_text(json.dumps(updated, separators=(",",":")))
 PY
-""" % (faucet_addr, faucet_amount),
+""" % {"height": faucet_height, "faucet_addr": faucet_addr, "faucet_amount": faucet_amount},
             ],
         ),
-        description="Prepare faucet multi-denom balances and updated supply",
+        description="Prepare faucet multi-denom balances and updated supply from ninerealms",
     )
 
 
@@ -391,12 +379,30 @@ cb=$(tr -d '\\n\\r' </tmp/consensus_block.json)
 na=$(tr -d '\\n\\r' </tmp/node_accounts.json)
 vm=$(tr -d '\\n\\r' </tmp/vault_membership.json)
 ac=$(tr -d '\\n\\r' </tmp/accounts_fragment.json)
-bl=$(tr -d '\\n\\r' </tmp/balances_fragment.json)
+# Prefer merged balances if present (includes all denoms for faucet)
+if [ -f /tmp/merged_balances_fragment.json ]; then
+  bl=$(tr -d '\\n\\r' </tmp/merged_balances_fragment.json)
+else
+  bl=$(tr -d '\\n\\r' </tmp/balances_fragment.json)
+fi
 rs=$(tr -d '\\n\\r' </tmp/rune_supply.txt)
+su=$(tr -d '\\n\\r' </tmp/supply_fragment.json)
 
-# Build faucet balance and recompute supply inline via captured Python below
+# escape function
+escape() { printf '%s' "$1" | sed -e 's/[\\/&]/\\\\&/g'; }
 
-# compute and persist merged balances string and supply json via Python (avoid command substitution pitfalls)
+# Apply replacements including __SUPPLY__
+sed -i \
+  -e "s/\\"__CONSENSUS_BLOCK__\\"/$(escape "$cb")/" \
+  -e "s/\\"__NODE_ACCOUNTS__\\"/$(escape "$na")/" \
+  -e "s/\\"__VAULT_MEMBERSHIP__\\"/$(escape "$vm")/" \
+  -e "s/\\"__ACCOUNTS__\\"/$(escape "$ac")/" \
+  -e "s/\\"__BALANCES__\\"/$(escape "$bl")/" \
+  -e "s/\\"__SUPPLY__\\"/$(escape "$su")/" \
+  -e "s/\\"__RUNE_SUPPLY__\\"/$(escape "$rs")/" \
+  "$CFG"
+
+# Validate JSON
 python3 - << 'PY'
 import json, collections
 from pathlib import Path
