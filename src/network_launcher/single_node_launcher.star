@@ -469,7 +469,8 @@ if isinstance(w.get("contracts"), list):
     merge_contracts(g, w["contracts"])
 
 def esc(s):
-    return s.replace('\\','\\\\').replace('/','\\/').replace('&','\\&')
+    b = chr(92)
+    return s.replace(b, b + b).replace('/', b + '/').replace('&', b + '&')
 
 sed_lines = []
 for mod in sorted(mods_changed):
