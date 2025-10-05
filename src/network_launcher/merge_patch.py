@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import json
+import sys
+
 from pathlib import Path
 
 CFG = Path("/root/.thornode/config/genesis.json")
@@ -417,6 +419,28 @@ def main():
         _drop_contract_key_inplace(wasm)
     CFG.write_text(json.dumps(g, separators=(",",":")))
     print("mods_changed=%d applied_json=1" % (len(mods_changed)))
+def cleanup_wasm_contract_keys():
+    g = json.loads(CFG.read_text())
+    wasm = g.get("app_state", {}).get("wasm")
+    count = [0]
+    def drop(v):
+        if isinstance(v, dict):
+            if "contract" in v:
+                v.pop("contract", None)
+                count[0] += 1
+            for val in list(v.values()):
+                drop(val)
+        elif isinstance(v, list):
+            for it in v:
+                drop(it)
+    if isinstance(wasm, (dict, list)):
+        drop(wasm)
+        CFG.write_text(json.dumps(g, separators=(",",":")))
+    print(f"dropped_contract_keys={count[0]}")
+
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == "--cleanup-wasm-contract":
+        cleanup_wasm_contract_keys()
+    else:
+        main()
