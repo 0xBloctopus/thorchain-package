@@ -468,7 +468,7 @@ if isinstance(w.get("codes"), list):
 if isinstance(w.get("contracts"), list):
     merge_contracts(g, w["contracts"])
 
-def esc(s: str) -> str:
+def esc(s):
     return s.replace('\\','\\\\').replace('/','\\/').replace('&','\\&')
 
 sed_lines = []
