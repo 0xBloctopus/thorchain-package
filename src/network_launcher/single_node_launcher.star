@@ -474,7 +474,7 @@ def esc(s: str) -> str:
 sed_lines = []
 for mod in sorted(mods_changed):
     payload = json.dumps(g["app_state"][mod], separators=(",",":"))
-    pattern = '"%%s":[ ]*\\{.*?\\}' % mod
+    pattern = '"%%s":[ ]*\\{.*?\\}' %% mod
     sed_lines.append(f'/{pattern}/ s//"{mod}":{esc(payload)}/')
 
 Path("/tmp/genesis_patch.sed").write_text("\\n".join(sed_lines))
