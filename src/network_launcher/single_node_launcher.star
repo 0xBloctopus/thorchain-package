@@ -501,7 +501,7 @@ sed -i \
   -e "s/\\"__CHAIN_ID__\\"/\\"$(escape "$CHAIN_ID")\\"/" \
   -e "s/\\"__INITIAL_HEIGHT__\\"/\\"$(escape "$INITIAL_HEIGHT")\\"/" \
   -e "s/\\"__APP_VERSION__\\"/\\"$(escape "$APP_VERSION")\\"/" \
-  -e "s/\\"__RESERVE__\\"/$(escape "$RESERVE")/" \
+  -e "s/\\"__RESERVE__\\"/\\"$(escape "$RESERVE")\\"/" \
   -e "s/\\"__CONSENSUS_BLOCK__\\"/$(escape "$cb")/" \
   -e "s/\\"__NODE_ACCOUNTS__\\"/$(escape "$na")/" \
   -e "s/\\"__VAULT_MEMBERSHIP__\\"/$(escape "$vm")/" \
