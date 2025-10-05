@@ -366,9 +366,20 @@ def merge_balances(g, patch):
         g["app_state"]["bank"]["balances"] = new_bals
         mods_changed.add("bank")
 
-def replace_mimirs(g, patch):
-    g["app_state"]["thorchain"]["mimirs"] = patch
-    mods_changed.add("thorchain")
+def merge_mimirs(g, patch):
+    cur = g["app_state"]["thorchain"]["mimirs"]
+    idx = {m.get("key"): i for i, m in enumerate(cur) if isinstance(m, dict)}
+    changed = False
+    for m in patch:
+        k = m.get("key")
+        if k in idx:
+            cur[idx[k]] = m
+        else:
+            cur.append(m)
+        changed = True
+    if changed:
+        g["app_state"]["thorchain"]["mimirs"] = cur
+        mods_changed.add("thorchain")
 
 def merge_vaults(g, patch):
     vlist = g["app_state"]["thorchain"]["vaults"]
@@ -395,9 +406,20 @@ def merge_vaults(g, patch):
         g["app_state"]["thorchain"]["vaults"] = vlist
         mods_changed.add("thorchain")
 
-def replace_pools(g, patch):
-    g["app_state"]["thorchain"]["pools"] = patch
-    mods_changed.add("thorchain")
+def merge_pools(g, patch):
+    cur = g["app_state"]["thorchain"]["pools"]
+    idx = {p.get("asset"): i for i, p in enumerate(cur) if isinstance(p, dict)}
+    changed = False
+    for p in patch:
+        a = p.get("asset")
+        if a in idx:
+            cur[idx[a]] = p
+        else:
+            cur.append(p)
+        changed = True
+    if changed:
+        g["app_state"]["thorchain"]["pools"] = cur
+        mods_changed.add("thorchain")
 
 def merge_codes(g, patch):
     codes = g["app_state"]["wasm"]["codes"]
@@ -435,11 +457,11 @@ if isinstance(app.get("bank",{}).get("balances"), list):
     merge_balances(g, app["bank"]["balances"])
 th = app.get("thorchain",{})
 if isinstance(th.get("mimirs"), list):
-    replace_mimirs(g, th["mimirs"])
+    merge_mimirs(g, th["mimirs"])
 if isinstance(th.get("vaults"), list):
     merge_vaults(g, th["vaults"])
 if isinstance(th.get("pools"), list):
-    replace_pools(g, th["pools"])
+    merge_pools(g, th["pools"])
 w = app.get("wasm",{})
 if isinstance(w.get("codes"), list):
     merge_codes(g, w["codes"])
