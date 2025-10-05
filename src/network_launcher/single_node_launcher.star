@@ -315,6 +315,19 @@ fi
         ),
         description="Log diff/meta sizes and sed rule head"
     )
+    # e.3) Scan thorchain for stringified JSON to catch bad fields early
+    plan.exec(
+        node_name,
+        ExecRecipe(
+            command=[
+                "/bin/sh",
+                "-lc",
+                "set -e; python3 - <<'PY'\nimport json\np='%(cfg)s/genesis.json'\nj=json.load(open(p))\nth=j.get('app_state',{}).get('thorchain',{})\nstack=[([], th)]\nbad=[]\nlim=0\nwhile stack and lim<200000:\n  lim+=1\n  path,v=stack.pop()\n  if isinstance(v, dict):\n    for k in list(v.keys()): stack.append((path+[k], v[k]))\n  elif isinstance(v, list):\n    for i,x in enumerate(v[:200]): stack.append((path+[str(i)], x))\n  elif isinstance(v, str):\n    s=v.strip()\n    if s[:1] in '[{': bad.append(('.'.join(path), s[:100].replace('\\n',' ')))\nprint('thorchain_stringified_json_count', len(bad))\nfor p,prev in bad[:20]: print('bad', p, prev)\nPY" % {"cfg": config_folder}
+            ],
+        ),
+        description="Scan thorchain for stringified JSON values"
+    )
+
 
 
 
@@ -488,7 +501,7 @@ sed -i \
   -e "s/\\"__CHAIN_ID__\\"/\\"$(escape "$CHAIN_ID")\\"/" \
   -e "s/\\"__INITIAL_HEIGHT__\\"/\\"$(escape "$INITIAL_HEIGHT")\\"/" \
   -e "s/\\"__APP_VERSION__\\"/\\"$(escape "$APP_VERSION")\\"/" \
-  -e "s/\\"__RESERVE__\\"/\\"$(escape "$RESERVE")\\"/" \
+  -e "s/\\"__RESERVE__\\"/$(escape "$RESERVE")/" \
   -e "s/\\"__CONSENSUS_BLOCK__\\"/$(escape "$cb")/" \
   -e "s/\\"__NODE_ACCOUNTS__\\"/$(escape "$na")/" \
   -e "s/\\"__VAULT_MEMBERSHIP__\\"/$(escape "$vm")/" \
