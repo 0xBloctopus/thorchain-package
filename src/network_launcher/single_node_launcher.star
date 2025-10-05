@@ -79,7 +79,7 @@ def launch_single_node(plan, chain_cfg):
             entrypoint=["/bin/sh", "-lc", "sleep infinity"],
             min_cpu=participant.get("min_cpu", 500),
             min_memory=participant.get("min_memory", 512),
-            files={"merge_patch": merge_artifact},
+            files={"/merge_patch": merge_artifact},
         ),
     )
 
