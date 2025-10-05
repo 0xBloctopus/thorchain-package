@@ -437,10 +437,33 @@ def cleanup_wasm_contract_keys():
         drop(wasm)
         CFG.write_text(json.dumps(g, separators=(",",":")))
     print(f"dropped_contract_keys={count[0]}")
+def scan_contract_keys():
+    g = json.loads(CFG.read_text())
+    app = g.get("app_state", {})
+    paths = []
+    def walk(v, p):
+        if isinstance(v, dict):
+            if "contract" in v:
+                paths.append(".".join(p + ["{contract}"]))
+            for k, val in v.items():
+                walk(val, p + [k])
+        elif isinstance(v, list):
+            for i, it in enumerate(v[:100]):
+                walk(it, p + [f"[{i}]"])
+    walk(app, ["app_state"])
+    print(f"contract_key_occurrences={len(paths)}")
+    for s in paths[:20]:
+        print(s)
+
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--cleanup-wasm-contract":
-        cleanup_wasm_contract_keys()
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--cleanup-wasm-contract":
+            cleanup_wasm_contract_keys()
+        elif sys.argv[1] == "--scan-contract-keys":
+            scan_contract_keys()
+        else:
+            main()
     else:
         main()
