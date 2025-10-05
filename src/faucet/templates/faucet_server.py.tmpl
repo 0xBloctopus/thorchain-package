@@ -43,7 +43,7 @@ class Handler(BaseHTTPRequestHandler):
                 "--gas","auto",
                 "--gas-adjustment","1.3",
                 "--fees","500000rune",
-                "-y","--broadcast-mode","block"
+                "-y","--broadcast-mode","sync"
             ]
             res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             if res.returncode != 0:
@@ -61,7 +61,7 @@ if __name__ == "__main__":
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             if check.returncode != 0:
-                mn = open("/tmp/mnemonic","r").read().strip()
+                mn = open(os.environ.get("MNEMONIC_PATH", "/tmp/mnemonic/mnemonic.txt"),"r").read().strip()
                 subprocess.run(
                     [THORNODE_BIN,"keys","add",KEY_NAME,"--recover","--keyring-backend",KEYRING_BACKEND],
                     input=mn + "\n",

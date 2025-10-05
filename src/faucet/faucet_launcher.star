@@ -51,7 +51,8 @@ def launch_faucet(plan, chain_name, chain_id, mnemonic, transfer_amount):
                 "NODE_URL": "http://{}:26657".format(first_node.ip_address),
                 "PORT": "8090",
                 "KEY_NAME": "faucet",
-                "KEYRING_BACKEND": "test"
+                "KEYRING_BACKEND": "test",
+                "MNEMONIC_PATH": "/tmp/mnemonic/mnemonic.txt"
             }
         )
     )
