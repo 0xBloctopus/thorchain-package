@@ -1,7 +1,7 @@
 def launch_faucet(plan, chain_name, chain_id, mnemonic, transfer_amount):
     # Get first node
     first_node = plan.get_service(
-        name = "{}-node-1".format(chain_name)
+        name = "{}-node".format(chain_name)
     )
 
     mnemonic_data = {
@@ -18,19 +18,19 @@ def launch_faucet(plan, chain_name, chain_id, mnemonic, transfer_amount):
         name="{}-faucet-mnemonic-file".format(chain_name)
     )
 
-    # Use the Thorchain image directly
-    faucet_image = "tiljordan/thorchain-faucet:1.0.0"
-
-    # Create faucet script as a template
-    faucet_script = plan.render_templates(
+    # Render faucet server
+    faucet_server = plan.render_templates(
         config = {
-            "faucet.sh": struct(
-                template = read_file("./faucet.sh"),
+            "faucet_server.py": struct(
+                template = read_file("templates/faucet_server.py.tmpl"),
                 data = {}
             )
         },
-        name="{}-faucet-script".format(chain_name)
+        name="{}-faucet-server".format(chain_name)
     )
+
+    # Use thornode forking image to get thornode CLI in container
+    faucet_image = "tiljordan/thornode-forking:1.0.17"
 
     # Launch the faucet service
     plan.add_service(
@@ -43,15 +43,16 @@ def launch_faucet(plan, chain_name, chain_id, mnemonic, transfer_amount):
             },
             files = {
                 "/tmp/mnemonic": mnemonic_file,
-                "/app": faucet_script
+                "/app": faucet_server
             },
-            entrypoint = ["/usr/bin/env", "bash", "/app/faucet.sh"],
+            entrypoint = ["/bin/sh","-lc","export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin && exec python3 /app/faucet_server.py"],
             env_vars = {
                 "CHAIN_ID": chain_id,
                 "NODE_URL": "http://{}:26657".format(first_node.ip_address),
-                "TRANSFER_AMOUNT": str(transfer_amount),
                 "PORT": "8090",
-                "MONITORING_PORT": "8091"
+                "KEY_NAME": "faucet",
+                "KEYRING_BACKEND": "test",
+                "MNEMONIC_PATH": "/tmp/mnemonic/mnemonic.txt"
             }
         )
     )

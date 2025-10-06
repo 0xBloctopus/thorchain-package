@@ -1,0 +1,506 @@
+[
+  {
+    "denom": "avax-avax",
+    "amount": "40545243760"
+  },
+  {
+    "denom": "avax-sol-0xfe6b19286885a4f7f55adad09c3cd1f906d2478f",
+    "amount": "10"
+  },
+  {
+    "denom": "avax-usdc-0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
+    "amount": "40564768550"
+  },
+  {
+    "denom": "avax-usdt-0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7",
+    "amount": "225513220950"
+  },
+  {
+    "denom": "avax/avax",
+    "amount": "4078229611474"
+  },
+  {
+    "denom": "avax/sol-0xfe6b19286885a4f7f55adad09c3cd1f906d2478f",
+    "amount": "137229178"
+  },
+  {
+    "denom": "avax/usdc-0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
+    "amount": "65229115178334"
+  },
+  {
+    "denom": "avax/usdt-0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7",
+    "amount": "337540682940"
+  },
+  {
+    "denom": "base-eth",
+    "amount": "235924783"
+  },
+  {
+    "denom": "base-usdc-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+    "amount": "2326820147183"
+  },
+  {
+    "denom": "bch-bch",
+    "amount": "2837035448"
+  },
+  {
+    "denom": "bch/bch",
+    "amount": "562051670704"
+  },
+  {
+    "denom": "bnb/ava-645",
+    "amount": "3140620853"
+  },
+  {
+    "denom": "bnb/bnb",
+    "amount": "590352795"
+  },
+  {
+    "denom": "bnb/btcb-1de",
+    "amount": "185771221"
+  },
+  {
+    "denom": "bnb/busd-bd1",
+    "amount": "2167851265069"
+  },
+  {
+    "denom": "bnb/eth-1c9",
+    "amount": "283716656"
+  },
+  {
+    "denom": "bnb/twt-8c2",
+    "amount": "2017138248469"
+  },
+  {
+    "denom": "bsc-bnb",
+    "amount": "1919997622"
+  },
+  {
+    "denom": "bsc-busd-0xe9e7cea3dedca5984780bafc599bd69add087d56",
+    "amount": "3"
+  },
+  {
+    "denom": "bsc-eth-0x2170ed0880ac9a755fd29b2688956bd959f933f8",
+    "amount": "8"
+  },
+  {
+    "denom": "bsc-twt-0x4b0f1812e5df2a09796481ff14017e6005508003",
+    "amount": "3477812409"
+  },
+  {
+    "denom": "bsc-usdc-0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+    "amount": "180031547605"
+  },
+  {
+    "denom": "bsc-usdt-0x55d398326f99059ff775485246999027b3197955",
+    "amount": "828529101938"
+  },
+  {
+    "denom": "bsc/bnb",
+    "amount": "498955055136"
+  },
+  {
+    "denom": "bsc/usdc-0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+    "amount": "17932761109"
+  },
+  {
+    "denom": "bsc/usdt-0x55d398326f99059ff775485246999027b3197955",
+    "amount": "9340596826"
+  },
+  {
+    "denom": "btc-btc",
+    "amount": "947105532"
+  },
+  {
+    "denom": "btc/btc",
+    "amount": "54049458601"
+  },
+  {
+    "denom": "doge-doge",
+    "amount": "17766761109196"
+  },
+  {
+    "denom": "doge/doge",
+    "amount": "1813877286341548"
+  },
+  {
+    "denom": "eth-aave-0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+    "amount": "3253347"
+  },
+  {
+    "denom": "eth-dai-0x6b175474e89094c44da98b954eedeac495271d0f",
+    "amount": "1285208581111"
+  },
+  {
+    "denom": "eth-eth",
+    "amount": "17553170745"
+  },
+  {
+    "denom": "eth-gusd-0x056fd409e1d7a124bd7017459dfea2f387b6d5cd",
+    "amount": "957343000000"
+  },
+  {
+    "denom": "eth-link-0x514910771af9ca656af840dff83e8264ecf986ca",
+    "amount": "11459053"
+  },
+  {
+    "denom": "eth-lusd-0x5f98805a4e8be255a32880fdec7f6728c6568ba0",
+    "amount": "1583897693216"
+  },
+  {
+    "denom": "eth-tgt-0x108a850856db3f85d0269a2693d896b394c80325",
+    "amount": "611761316211"
+  },
+  {
+    "denom": "eth-thor-0xa5f2211b9b8170f694421f2046281775e8468044",
+    "amount": "1612477598008"
+  },
+  {
+    "denom": "eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "163788701309102"
+  },
+  {
+    "denom": "eth-usdp-0x8e870d67f660d95d5be530380d0ec0bd388289e1",
+    "amount": "400104552"
+  },
+  {
+    "denom": "eth-usdt-0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "amount": "1668153016894"
+  },
+  {
+    "denom": "eth-vthor-0x815c23eca83261b6ec689b60cc4a58b54bc24d8d",
+    "amount": "65337199701"
+  },
+  {
+    "denom": "eth-wbtc-0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+    "amount": "9347497"
+  },
+  {
+    "denom": "eth-xrune-0x69fa0fee221ad11012bab0fdb45d444d3d2ce71c",
+    "amount": "509288104799"
+  },
+  {
+    "denom": "eth/aave-0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+    "amount": "1894504092"
+  },
+  {
+    "denom": "eth/dai-0x6b175474e89094c44da98b954eedeac495271d0f",
+    "amount": "2297623629436"
+  },
+  {
+    "denom": "eth/dpi-0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b",
+    "amount": "4159168702"
+  },
+  {
+    "denom": "eth/eth",
+    "amount": "490373992813"
+  },
+  {
+    "denom": "eth/flip-0x826180541412d574cf1336d22c0c0a287822678a",
+    "amount": "115492448375"
+  },
+  {
+    "denom": "eth/fox-0xc770eefad204b5180df6a14ee197d99d808ee52d",
+    "amount": "5122388618638"
+  },
+  {
+    "denom": "eth/gusd-0x056fd409e1d7a124bd7017459dfea2f387b6d5cd",
+    "amount": "494106127700"
+  },
+  {
+    "denom": "eth/hegic-0x584bc13c7d411c00c01a62e8019472de68768430",
+    "amount": "1664625084373"
+  },
+  {
+    "denom": "eth/kyl-0x67b6d479c7bb412c54e03dca8e1bc6740ce6b99c",
+    "amount": "673795060"
+  },
+  {
+    "denom": "eth/link-0x514910771af9ca656af840dff83e8264ecf986ca",
+    "amount": "6275224257"
+  },
+  {
+    "denom": "eth/lusd-0x5f98805a4e8be255a32880fdec7f6728c6568ba0",
+    "amount": "4795311801"
+  },
+  {
+    "denom": "eth/snx-0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f",
+    "amount": "62151186439"
+  },
+  {
+    "denom": "eth/tgt-0x108a850856db3f85d0269a2693d896b394c80325",
+    "amount": "181017694194276"
+  },
+  {
+    "denom": "eth/thor-0xa5f2211b9b8170f694421f2046281775e8468044",
+    "amount": "53892993229518"
+  },
+  {
+    "denom": "eth/uos-0xd13c7342e1ef687c5ad21b27c2b65d772cab5c8c",
+    "amount": "336091587710"
+  },
+  {
+    "denom": "eth/usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "587115457572477"
+  },
+  {
+    "denom": "eth/usdp-0x8e870d67f660d95d5be530380d0ec0bd388289e1",
+    "amount": "80632681"
+  },
+  {
+    "denom": "eth/usdt-0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "amount": "357894088147308"
+  },
+  {
+    "denom": "eth/vthor-0x815c23eca83261b6ec689b60cc4a58b54bc24d8d",
+    "amount": "4365596254328"
+  },
+  {
+    "denom": "eth/wbtc-0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+    "amount": "9121528"
+  },
+  {
+    "denom": "eth/xdefi-0x72b886d09c117654ab7da13a14d603001de0b777",
+    "amount": "9128280801469"
+  },
+  {
+    "denom": "eth/xrune-0x69fa0fee221ad11012bab0fdb45d444d3d2ce71c",
+    "amount": "22833812240118"
+  },
+  {
+    "denom": "eth/yfi-0x0bc529c00c6401aef6d220be8c6ea1667f6ad93e",
+    "amount": "67136"
+  },
+  {
+    "denom": "gaia-atom",
+    "amount": "321225167210"
+  },
+  {
+    "denom": "gaia/atom",
+    "amount": "4034878467080"
+  },
+  {
+    "denom": "ltc-ltc",
+    "amount": "13281378126"
+  },
+  {
+    "denom": "ltc/ltc",
+    "amount": "2583589924657"
+  },
+  {
+    "denom": "rune",
+    "amount": "42537132255533431"
+  },
+  {
+    "denom": "tcy",
+    "amount": "21000000000000000"
+  },
+  {
+    "denom": "terra/luna",
+    "amount": "9132087280"
+  },
+  {
+    "denom": "terra/ust",
+    "amount": "41673207823965"
+  },
+  {
+    "denom": "thor.auto",
+    "amount": "8429267428092700"
+  },
+  {
+    "denom": "thor.btc",
+    "amount": "119486030622"
+  },
+  {
+    "denom": "thor.eth",
+    "amount": "1353340755474"
+  },
+  {
+    "denom": "thor.fuzn",
+    "amount": "12747325548920700"
+  },
+  {
+    "denom": "thor.kuji",
+    "amount": "9026324982978000"
+  },
+  {
+    "denom": "thor.lqdy",
+    "amount": "8726689200594100"
+  },
+  {
+    "denom": "thor.lvn",
+    "amount": "65041652364439100"
+  },
+  {
+    "denom": "thor.mimir",
+    "amount": "600000000000"
+  },
+  {
+    "denom": "thor.nami",
+    "amount": "8043749653213400"
+  },
+  {
+    "denom": "thor.nstk",
+    "amount": "4984162579250300"
+  },
+  {
+    "denom": "thor.rkuji",
+    "amount": "996085277567200"
+  },
+  {
+    "denom": "thor.wink",
+    "amount": "6589677450633800"
+  },
+  {
+    "denom": "tor",
+    "amount": "1381124490000"
+  },
+  {
+    "denom": "x/bow-xyk-avax-avax-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "104578537817"
+  },
+  {
+    "denom": "x/bow-xyk-bch-bch-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "40912246607"
+  },
+  {
+    "denom": "x/bow-xyk-bsc-bnb-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "34404525750"
+  },
+  {
+    "denom": "x/bow-xyk-btc-btc-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "55447879947"
+  },
+  {
+    "denom": "x/bow-xyk-doge-doge-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "2077257200835"
+  },
+  {
+    "denom": "x/bow-xyk-eth-eth-btc-btc",
+    "amount": "198571139"
+  },
+  {
+    "denom": "x/bow-xyk-eth-eth-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "109678162257"
+  },
+  {
+    "denom": "x/bow-xyk-gaia-atom-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "238967549049"
+  },
+  {
+    "denom": "x/bow-xyk-ltc-ltc-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "78823357490"
+  },
+  {
+    "denom": "x/bow-xyk-thor.auto-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "34317507976046"
+  },
+  {
+    "denom": "x/bow-xyk-thor.lqdy-btc-btc",
+    "amount": "20425905649"
+  },
+  {
+    "denom": "x/bow-xyk-thor.lqdy-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "6598824420785"
+  },
+  {
+    "denom": "x/bow-xyk-thor.nami-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "30086769279"
+  },
+  {
+    "denom": "x/bow-xyk-x/ruji-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "34582670608924"
+  },
+  {
+    "denom": "x/bow-xyk-x/ruji-rune",
+    "amount": "9661364"
+  },
+  {
+    "denom": "x/bow-xyk-xrp-xrp-eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "1451308652"
+  },
+  {
+    "denom": "x/ghost-vault/avax-avax",
+    "amount": "20993354619"
+  },
+  {
+    "denom": "x/ghost-vault/base-eth",
+    "amount": "191245019"
+  },
+  {
+    "denom": "x/ghost-vault/bch-bch",
+    "amount": "1057180019"
+  },
+  {
+    "denom": "x/ghost-vault/bsc-bnb",
+    "amount": "680651690"
+  },
+  {
+    "denom": "x/ghost-vault/btc-btc",
+    "amount": "19394033"
+  },
+  {
+    "denom": "x/ghost-vault/doge-doge",
+    "amount": "2166912826449"
+  },
+  {
+    "denom": "x/ghost-vault/eth-eth",
+    "amount": "513328056"
+  },
+  {
+    "denom": "x/ghost-vault/eth-usdc-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "amount": "14569799354005"
+  },
+  {
+    "denom": "x/ghost-vault/eth-usdt-0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "amount": "1229988058520"
+  },
+  {
+    "denom": "x/ghost-vault/gaia-atom",
+    "amount": "134234416808"
+  },
+  {
+    "denom": "x/ghost-vault/ltc-ltc",
+    "amount": "5504803740"
+  },
+  {
+    "denom": "x/ghost-vault/tcy",
+    "amount": "1225941429806"
+  },
+  {
+    "denom": "x/ghost-vault/xrp-xrp",
+    "amount": "385506752889"
+  },
+  {
+    "denom": "x/nami-index-fixed-thor1yqf5spdv8c4088zmvqsg32eq63fzepsjvntahdk0ek0yjnkt3qdqftp3lc-rcpt",
+    "amount": "15439483336"
+  },
+  {
+    "denom": "x/nami-index-nav-thor1h0hr0rm3dawkedh44hlrmgvya6plsryehcr46yda2vj0wfwgq5xqrs86px-rcpt",
+    "amount": "130622624852985"
+  },
+  {
+    "denom": "x/nami-index-nav-thor1mlphkryw5g54yfkrp6xpqzlpv4f8wh6hyw27yyg4z2els8a9gxpqhfhekt-rcpt",
+    "amount": "21601579832132"
+  },
+  {
+    "denom": "x/ruji",
+    "amount": "10000000000000000"
+  },
+  {
+    "denom": "x/staking-tcy",
+    "amount": "861112432064683"
+  },
+  {
+    "denom": "x/staking-thor.nami",
+    "amount": "388245827415144"
+  },
+  {
+    "denom": "x/staking-x/ruji",
+    "amount": "614828430784331"
+  },
+  {
+    "denom": "xrp-xrp",
+    "amount": "648073312854"
+  }
+]

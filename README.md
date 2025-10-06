@@ -40,7 +40,7 @@ kurtosis run --enclave thorchain-testnet github.com/0xBloctopus/thorchain-packag
 Create a configuration file and deploy:
 
 ```bash
-kurtosis run --enclave thorchain-testnet github.com/0xBloctopus/thorchain-package --args-file config.yaml
+kurtosis run --enclave thor-fork . --args-file examples/forking-genesis.yaml
 ```
 
 Example minimal configuration:
@@ -111,9 +111,11 @@ After deployment, services are accessible at:
 - **Metrics**: `http://<node-ip>:26660` - Prometheus metrics
 
 ### Faucet Service
-- **API**: `http://<faucet-ip>:8090` - Token distribution endpoint (`/fund/<address>`)
-- **Monitoring**: `http://<faucet-ip>:8091` - Health monitoring
-- **Usage**: `curl -X POST http://<faucet-ip>:8090/fund/thor1your_address_here`
+- **API**: `http://<faucet-ip>:8090` - Token distribution endpoint (`POST /fund`)
+- **Usage**:
+  - `curl -s -X POST -H "Content-Type: application/json" \`
+  - `  -d '{"address":"<thor1...>","amount":"1000000","denom":"rune"}' \`
+  - `  http://<faucet-ip>:8090/fund`
 
 ### Block Explorer (BdJuno)
 - **Explorer**: `http://<explorer-ip>:80` - Web interface
@@ -153,26 +155,29 @@ chains:
 ```
 
 ### State Forking
-Fork from mainnet state ([examples/forking-enabled.yaml](examples/forking-enabled.yaml)):
+Fork from mainnet state with a minimal config (examples/forking-genesis.yaml):
 ```yaml
 chains:
   - name: thorchain
     type: thorchain
-    participants:
-      - image: "tiljordan/thornode-forking:1.0.5"
-        account_balance: 1000000000000000
-        bond_amount: "300000000000000"
-        count: 1
+    chain_id: "thorchain-mainnet-v1"
+    app_version: "3.11.0"
     forking:
       enabled: true
-      grpc: "grpc.thor.pfc.zone:443"
-      chain_id: "thorchain-1"
-      height: 22071722
-      cache_enabled: true
-      cache_size: 10000
-      timeout: "60s"
-      gas_cost_per_fetch: 1000
+      image: "tiljordan/thornode-forking:1.0.17"
+      height: 23015000
+    participants:
+      - image: "tiljordan/thornode-forking:1.0.17"
+        count: 1
+        account_balance: 1000000000000
+        bond_amount: 500000000000
+    faucet:
+      faucet_amount: 1000000000
+      transfer_amount: 100000000
+    additional_services:
+      - faucet
 ```
+Note: initial_height is computed automatically as forking.height + 1.
 
 ### Custom Services
 Deploy specific auxiliary services:

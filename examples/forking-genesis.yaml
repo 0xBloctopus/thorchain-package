@@ -1,0 +1,27 @@
+chains:
+  - name: thorchain
+    type: thorchain
+    chain_id: thorchain-localnet
+    app_version: "3.11.0"
+    genesis_delay: 1
+
+    forking:
+      enabled: true
+      image: "tiljordan/thornode-forking:1.0.17"
+      height: 23043758
+
+    participants:
+      - type: full
+        count: 1
+        image: "tiljordan/thornode-forking:1.0.17"
+        account_balance: 1000000000000
+        bond_amount: 500000000000
+        min_cpu: 500
+        min_memory: 512
+
+    faucet:
+      faucet_amount: 1000000000
+      transfer_amount: 100000000
+
+    additional_services:
+      - faucet
