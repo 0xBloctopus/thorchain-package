@@ -12,6 +12,19 @@ PORT = int(os.environ.get("PORT", "8090"))
 THORNODE_BIN = os.environ.get("THORNODE_BIN") or shutil.which("thornode") or next((p for p in ["/usr/local/bin/thornode","/usr/bin/thornode","/bin/thornode","/sbin/thornode","/usr/sbin/thornode"] if os.path.isfile(p) and os.access(p, os.X_OK)), None)
 
 class Handler(BaseHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        super().end_headers()
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        self.end_headers()
+
     def _send(self, code, body):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
