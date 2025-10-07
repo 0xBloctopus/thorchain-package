@@ -42,7 +42,7 @@ def run(plan, args):
             assertion=">=",
             target_value="1",
             interval="2s",
-            timeout="3m",
+            timeout="6m",
             description="Waiting for first block on {}".format(chain_name)
         )
         
