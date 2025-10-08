@@ -43,6 +43,17 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length","0"))
             data = json.loads(self.rfile.read(length) or "{}")
             address = data.get("address")
+
+            # Accept amount from request OR use default
+            amount = data.get("amount")
+            if amount is None:
+                amount = TRANSFER_AMOUNT
+            else:
+                # Validate it's a positive integer
+                if not isinstance(amount, int) or amount <= 0:
+                    self._send(400, {"error": "amount must be a positive integer"})
+                    return
+
             denom = data.get("denom", "rune")
             if not address:
                 self._send(400, {"error":"address required"})
@@ -50,7 +61,7 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(denom, str) or not denom:
                 self._send(400, {"error":"denom must be non-empty string"})
                 return
-            coin = f"{TRANSFER_AMOUNT}{denom}"
+            coin = f"{amount}{denom}"
             cmd = [
                 THORNODE_BIN,"tx","bank","send", KEY_NAME, address, coin,
                 "--chain-id", CHAIN_ID,
@@ -76,7 +87,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, {
                 "message": "Native transfer successful",
                 "txHash": txhash,
-                "amount": TRANSFER_AMOUNT,
+                "amount": amount,
                 "denom": denom,
                 "ok": True,
                 "rawOutput": res.stdout  # Keep raw output for debugging
