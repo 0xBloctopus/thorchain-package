@@ -52,7 +52,8 @@ def launch_faucet(plan, chain_name, chain_id, mnemonic, transfer_amount):
                 "PORT": "8090",
                 "KEY_NAME": "faucet",
                 "KEYRING_BACKEND": "test",
-                "MNEMONIC_PATH": "/tmp/mnemonic/mnemonic.txt"
+                "MNEMONIC_PATH": "/tmp/mnemonic/mnemonic.txt",
+                "TRANSFER_AMOUNT": str(transfer_amount)
             }
         )
     )

@@ -20,8 +20,8 @@ chains:
         min_memory: 512
 
     faucet:
-      faucet_amount: 1000000000
-      transfer_amount: 100000000
+      faucet_amount: 1000000000000000
+      transfer_amount: 10000000000000
 
     additional_services:
       - faucet
