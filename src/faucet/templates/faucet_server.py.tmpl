@@ -2,13 +2,14 @@
 import json
 import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import os, shutil
+import os, shutil, re
 
 CHAIN_ID = os.environ.get("CHAIN_ID", "thorchain")
 NODE_URL = os.environ.get("NODE_URL", "http://localhost:26657")
 KEY_NAME = os.environ.get("KEY_NAME", "faucet")
 KEYRING_BACKEND = os.environ.get("KEYRING_BACKEND", "test")
 PORT = int(os.environ.get("PORT", "8090"))
+TRANSFER_AMOUNT = int(os.environ.get("TRANSFER_AMOUNT", "10000000000000"))
 THORNODE_BIN = os.environ.get("THORNODE_BIN") or shutil.which("thornode") or next((p for p in ["/usr/local/bin/thornode","/usr/bin/thornode","/bin/thornode","/sbin/thornode","/usr/sbin/thornode"] if os.path.isfile(p) and os.access(p, os.X_OK)), None)
 
 class Handler(BaseHTTPRequestHandler):
@@ -42,12 +43,14 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length","0"))
             data = json.loads(self.rfile.read(length) or "{}")
             address = data.get("address")
-            amount = str(data.get("amount"))
-            denom = data.get("denom")
-            if not address or not amount.isdigit() or not denom:
-                self._send(400, {"error":"address, amount (int), denom required"})
+            denom = data.get("denom", "rune")
+            if not address:
+                self._send(400, {"error":"address required"})
                 return
-            coin = f"{amount}{denom}"
+            if not isinstance(denom, str) or not denom:
+                self._send(400, {"error":"denom must be non-empty string"})
+                return
+            coin = f"{TRANSFER_AMOUNT}{denom}"
             cmd = [
                 THORNODE_BIN,"tx","bank","send", KEY_NAME, address, coin,
                 "--chain-id", CHAIN_ID,
@@ -62,7 +65,22 @@ class Handler(BaseHTTPRequestHandler):
             if res.returncode != 0:
                 self._send(500, {"error":"tx failed","stderr":res.stderr})
                 return
-            self._send(200, {"ok":True,"tx":res.stdout})
+
+            # Parse tx hash from the thornode CLI output (thorchain prints 'txhash: ...')
+            txhash = None
+            match = re.search(r'txhash:\s*([A-Fa-f0-9]+)', res.stdout)
+            if match:
+                txhash = match.group(1)
+
+            # Return clean response matching Ethereum-style format
+            self._send(200, {
+                "message": "Native transfer successful",
+                "txHash": txhash,
+                "amount": TRANSFER_AMOUNT,
+                "denom": denom,
+                "ok": True,
+                "rawOutput": res.stdout  # Keep raw output for debugging
+            })
         except Exception as e:
             self._send(500, {"error":str(e)})
 
