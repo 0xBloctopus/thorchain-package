@@ -6,7 +6,7 @@ set -euo pipefail
 ###############################################################################
 CHAIN_ID="${CHAIN_ID:-thorchain-1}"
 NODE_URL="${NODE_URL:-http://localhost:26657}"
-TRANSFER_AMOUNT="${TRANSFER_AMOUNT:-100000000000}rune"   # value must include 'rune'
+TRANSFER_AMOUNT="${TRANSFER_AMOUNT:-10000000000000}rune"   # value must include 'rune'
 PORT="${PORT:-8090}"
 MONITORING_PORT="${MONITORING_PORT:-8091}"
 LOCK_FILE="/tmp/faucet.lock"          # serialises key-ring access
