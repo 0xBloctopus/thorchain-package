@@ -19,8 +19,8 @@
     ]
   },
   "faucet": {
-    "faucet_amount": 1000000000,
-    "transfer_amount": 100000000
+    "faucet_amount": 10000000000000,
+    "transfer_amount": 100000000000
   },
   "consensus": {
     "block_max_bytes": 22020096,
