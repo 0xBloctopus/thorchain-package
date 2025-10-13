@@ -29,6 +29,8 @@ def run(plan, args):
         
         # Wait for first block
         plan.print("Waiting for {} to produce first block...".format(node_name))
+        forking_config = chain.get("forking", {})
+        forking_height = str(forking_config.get("height", 0) + 1)
         plan.wait(
             service_name=node_name,
             recipe=GetHttpRequestRecipe(
@@ -39,8 +41,8 @@ def run(plan, args):
                 }
             ),
             field="extract.block",
-            assertion=">=",
-            target_value="1",
+            assertion=">",
+            target_value=forking_height,
             interval="2s",
             timeout="6m",
             description="Waiting for first block on {}".format(chain_name)
