@@ -172,8 +172,8 @@ chains:
         account_balance: 1000000000000
         bond_amount: 500000000000
     faucet:
-      faucet_amount: 1000000000
-      transfer_amount: 100000000
+      faucet_amount: 1000000000000000
+      transfer_amount: 10000000000000
     additional_services:
       - faucet
 ```
@@ -187,7 +187,7 @@ chains:
     type: "thorchain"
     additional_services: ["faucet", "bdjuno", "swap-ui"]
     faucet:
-      transfer_amount: 500000000  # Custom faucet amount
+      transfer_amount: 50000000000000  # Custom faucet amount (500k RUNE)
 ```
 
 
