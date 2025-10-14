@@ -44,7 +44,7 @@ def run(plan, args):
             assertion=">",
             target_value=forking_height,
             interval="2s",
-            timeout="6m",
+            timeout="10m",
             description="Waiting for first block on {}".format(chain_name)
         )
         
