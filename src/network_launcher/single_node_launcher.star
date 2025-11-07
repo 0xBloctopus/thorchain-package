@@ -8,7 +8,7 @@ def launch_single_node(plan, chain_cfg):
     config_folder = "/root/.thornode/config"
 
     forking_config = chain_cfg.get("forking", {})
-    forking_image = forking_config.get("image", "tiljordan/thornode-forking:1.0.17")
+    forking_image = forking_config.get("image", "tiljordan/thornode-forking:")
 
     participant = chain_cfg["participants"][0]
     account_balance = int(participant["account_balance"])
