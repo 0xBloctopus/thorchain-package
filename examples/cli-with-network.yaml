@@ -7,7 +7,7 @@ chains:
     participants:
       - type: full
         count: 1
-        image: "tiljordan/thornode-forking:1.0.25-23761879"
+        image: "tiljordan/thornode-forking:1.0.27-23761879"
         account_balance: 1000000000000
         bond_amount: 500000000000
         min_cpu: 500
