@@ -30,7 +30,7 @@ def launch_faucet(plan, chain_name, chain_id, mnemonic, transfer_amount):
     )
 
     # Use thornode forking image to get thornode CLI in container
-    faucet_image = "tiljordan/thornode-forking:1.0.25-23761879"
+    faucet_image = "tiljordan/thornode-forking:1.0.22-23761879"
 
     # Launch the faucet service
     plan.add_service(
