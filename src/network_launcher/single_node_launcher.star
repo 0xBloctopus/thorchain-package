@@ -9,7 +9,7 @@ def launch_single_node(plan, chain_cfg):
     config_folder = "/root/.thornode/config"
 
     forking_config = chain_cfg.get("forking", {})
-    forking_image = forking_config.get("image", "tiljordan/thornode-forking:1.0.25-23761879")
+    forking_image = forking_config.get("image", "tiljordan/thornode-forking:1.0.22-23761879")
 
     participant = chain_cfg["participants"][0]
     node_volume_size = participant.get("persistent_size_mb", chain_cfg.get("node_persistent_size_mb", 16384))
